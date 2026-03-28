@@ -1,0 +1,39 @@
+{
+  "player": {
+    "speed": 1000,
+    "hp": 10,
+    "attack": 3,
+    "defense": 1,
+    "attackCooldown": 400,
+    "invincibilityDuration": 500,
+    "knockbackForce": 80
+  },
+  "enemies": {
+    "skeleton": {
+      "hp": 4,
+      "attack": 2,
+      "defense": 0,
+      "speed": 40,
+      "aggroRange": 80,
+      "attackRange": 18
+    },
+    "vampire": {
+      "hp": 6,
+      "attack": 3,
+      "defense": 1,
+      "speed": 50,
+      "aggroRange": 100,
+      "attackRange": 18
+    }
+  },
+  "dungeon": {
+    "roomMin": 4,
+    "roomMax": 7,
+    "roomSizeMin": 5,
+    "roomSizeMax": 9,
+    "enemiesPerRoom": {
+      "min": 1,
+      "max": 3
+    }
+  }
+}
