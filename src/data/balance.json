@@ -20,7 +20,10 @@
       "aggroRange": 100,
       "attackRange": 50,
       "attackCooldown": 800,
-      "invincibilityDuration": 500
+      "invincibilityDuration": 500,
+      "patrolSpeed": 0.5,
+      "leashRange": 150,
+      "patrolPause": 1500
     },
     "vampire": {
       "hp": 450,
@@ -31,7 +34,10 @@
       "attackRange": 45,
       "attackCooldown": 600,
       "invincibilityDuration": 400,
-      "spawnChance": 0.3
+      "spawnChance": 0.3,
+      "patrolSpeed": 0.5,
+      "leashRange": 195,
+      "patrolPause": 1200
     }
   },
   "dungeon": {

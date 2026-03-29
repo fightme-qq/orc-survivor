@@ -143,6 +143,8 @@ export class GameScene extends Phaser.Scene {
           ? new Vampire(this, ex, ey)
           : new Skeleton(this, ex, ey);
         enemy.setPlayer(this.player);
+        enemy.setTiles(tiles);
+        enemy.setRoom(room);
         enemy.onDamagePlayer = (atk, fx, fy) => this.damagePlayer(atk, fx, fy);
         this.enemies.add(enemy);
       }
