@@ -314,10 +314,14 @@ export class GameScene extends Phaser.Scene {
         const row = Phaser.Math.Between(room.y + 1, room.y + room.h - 2);
         const ex  = col * TILE_S + TILE_S / 2;
         const ey  = row * TILE_S + TILE_S / 2;
-        const r = Math.random();
-        const enemy = r < balance.enemies.orc.spawnChance
+        const r = Math.random() * (
+          balance.enemies.skeleton.spawnWeight +
+          balance.enemies.vampire.spawnWeight +
+          balance.enemies.orc.spawnWeight
+        );
+        const enemy = r < balance.enemies.orc.spawnWeight
           ? new Orc(this, ex, ey)
-          : r < balance.enemies.orc.spawnChance + balance.enemies.vampire.spawnChance
+          : r < balance.enemies.orc.spawnWeight + balance.enemies.vampire.spawnWeight
           ? new Vampire(this, ex, ey)
           : new Skeleton(this, ex, ey);
         enemy.setPlayer(this.player);

@@ -248,8 +248,31 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.play(animKey, true);
   }
 
-  private showFlash(x: number, y: number, w: number, h: number, color: number): void {
-    const f = this.scene.add.rectangle(x, y, w, h, color, 0.75).setDepth(500);
-    this.scene.time.delayedCall(80, () => f.destroy());
+  private showFlash(x: number, y: number, w: number, _h: number, color: number): void {
+    const startR = 3;
+    const endR   = Math.max(w, 1) / 2 + 6;
+    const gfx    = this.scene.add.graphics().setDepth(500);
+    const t0     = this.scene.time.now;
+    const dur    = 200;
+
+    const ticker = (now: number) => {
+      const pct = Math.min((now - t0) / dur, 1);
+      const r   = startR + (endR - startR) * pct;
+      const a   = (1 - pct) * 0.6;
+      gfx.clear();
+      // Expanding ring
+      gfx.lineStyle(2 * (1 - pct), color, a);
+      gfx.strokeCircle(x, y, r);
+      // Inner dot
+      if (pct < 0.7) {
+        gfx.fillStyle(0xffffff, (1 - pct / 0.7) * 0.4);
+        gfx.fillCircle(x, y, r * 0.3);
+      }
+      if (pct >= 1) {
+        gfx.destroy();
+        this.scene.events.off('update', ticker);
+      }
+    };
+    this.scene.events.on('update', ticker);
   }
 }
