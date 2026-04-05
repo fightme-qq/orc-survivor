@@ -6,7 +6,7 @@ import { SCALE } from '../utils/constants';
 // Body covers visible character pixels head-to-feet, full width.
 // OFFX = (32 - BODY_W) / 2, OFFY = (32 - BODY_H) / 2
 // World width = 12 * 3 = 36px → fits in 1-tile corridor (48px).
-const BODY_W    = 12;
+const BODY_W    = 8;
 const BODY_H    = 12;
 const BODY_OFFX = 10; // (32 - 12) / 2 = 10
 const BODY_OFFY =  15; // (32 - 15) / 2 = 8.5, rounded to 10
@@ -24,10 +24,6 @@ export class Skeleton extends BaseEnemy {
       b.patrolSpeed, b.leashRange, b.patrolPause,
       b.knockbackForce,
     );
-    this.animIdle   = 'skeleton-idle-anim';
-    this.animWalk   = 'skeleton-walk-anim';
-    this.animAttack = 'skeleton-attack-anim';
-    this.animHit    = 'skeleton-hit-anim';
-    this.play(this.animIdle);
+    this.setupAnimations('skeleton');
   }
 }

@@ -25,10 +25,6 @@ export class Orc extends BaseEnemy {
       b.patrolSpeed, b.leashRange, b.patrolPause,
       b.knockbackForce,
     );
-    this.animIdle   = 'orc-idle-anim';
-    this.animWalk   = 'orc-walk-anim';
-    this.animAttack = 'orc-attack-anim';
-    this.animHit    = 'orc-hit-anim';
-    this.play(this.animIdle);
+    this.setupAnimations('orc');
   }
 }

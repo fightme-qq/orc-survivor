@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:anderoonies.github.io)",
+      "WebFetch(domain:www.boristhebrave.com)",
+      "WebFetch(domain:deepwiki.com)"
+    ]
+  }
+}

@@ -7,7 +7,8 @@
       "Bash(taskkill /PID 29068 /F)",
       "Bash(taskkill //PID 836 //F)",
       "Bash(taskkill //PID 29068 //F)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "WebSearch"
     ]
   }
 }

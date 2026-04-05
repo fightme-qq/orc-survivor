@@ -35,6 +35,7 @@
       "attackCooldown": 800,
       "invincibilityDuration": 500,
       "knockbackForce": 50,
+      "spawnWeight": 55,
       "patrolSpeed": 0.5,
       "leashRange": 600,
       "patrolPause": 1500
@@ -49,7 +50,7 @@
       "attackCooldown": 1000,
       "invincibilityDuration": 600,
       "knockbackForce": 20,
-      "spawnChance": 0.15,
+      "spawnWeight": 15,
       "patrolSpeed": 0.4,
       "leashRange": 500,
       "patrolPause": 2000
@@ -64,7 +65,7 @@
       "attackCooldown": 600,
       "invincibilityDuration": 400,
       "knockbackForce": 50,
-      "spawnChance": 0.3,
+      "spawnWeight": 30,
       "patrolSpeed": 0.5,
       "leashRange": 700,
       "patrolPause": 1200

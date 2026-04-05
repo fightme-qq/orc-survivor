@@ -28,6 +28,7 @@ export abstract class BaseEnemy extends Phaser.Physics.Arcade.Sprite {
   protected animWalk   = '';
   protected animAttack = '';
   protected animHit    = '';
+  protected barOffsetY = 0; // per-enemy vertical nudge for the HP bar
 
   protected player!: Phaser.Physics.Arcade.Sprite;
   onDamagePlayer: ((atk: number, fromX: number, fromY: number) => void) | null = null;
@@ -41,8 +42,7 @@ export abstract class BaseEnemy extends Phaser.Physics.Arcade.Sprite {
   private aiState:     AIState = AIState.PATROL;
   private stateTimer   = 0;   // ms remaining in current timed state
   private atkCooldown  = 0;   // ms until next attack is allowed
-  private atkHitAt     = 0;   // absolute game-time to deal hit damage
-  private atkHitDealt  = false;
+  private atkDamageAt  = -1;  // absolute game-time to deal damage; -1 = already dealt
 
   // ── Navigation (RETURN) ──────────────────────────────────
   private pathNextAt = 0;
@@ -185,7 +185,7 @@ export abstract class BaseEnemy extends Phaser.Physics.Arcade.Sprite {
     const depth = this.y + this.displayHeight;
     this.setDepth(depth);
     const bx = this.x;
-    const by = this.y - this.displayHeight / 2 - 4;
+    const by = (this.body as Phaser.Physics.Arcade.Body).top - 6 + this.barOffsetY;
     this.barBg.setPosition(bx, by).setDepth(depth + 1);
     this.barFill.setPosition(bx - (BAR_W - this.barFill.width) / 2, by).setDepth(depth + 2);
   }
@@ -213,8 +213,8 @@ export abstract class BaseEnemy extends Phaser.Physics.Arcade.Sprite {
     this.playAnim(this.animAttack);
 
     // Deal damage exactly once at the pre-calculated midpoint
-    if (!this.atkHitDealt && time >= this.atkHitAt) {
-      this.atkHitDealt = true;
+    if (this.atkDamageAt >= 0 && time >= this.atkDamageAt) {
+      this.atkDamageAt = -1;
       const d = Phaser.Math.Distance.Between(this.x, this.y, this.player.x, this.player.y);
       if (d <= this.attackRange * 1.3 && this.onDamagePlayer) {
         this.onDamagePlayer(this.attackDamage, this.x, this.y);
@@ -366,13 +366,21 @@ export abstract class BaseEnemy extends Phaser.Physics.Arcade.Sprite {
     const anim     = this.animAttack ? this.scene.anims.get(this.animAttack) : null;
     const totalMs  = anim ? (anim.frames.length / (anim.frameRate || 10)) * 1000 : 400;
     this.atkCooldown = this.attackCooldown;
-    this.atkHitDealt = false;
-    this.atkHitAt    = now + totalMs * 0.5;
+    this.atkDamageAt = now + totalMs * 0.5;
     this.enterState(AIState.ATTACK, totalMs);
   }
 
   // ── Animation ────────────────────────────────────────────
   // State drives animation — animation never drives state.
+
+  /** Called from subclass constructor: sets the four anim keys and starts idle. */
+  protected setupAnimations(prefix: string): void {
+    this.animIdle   = `${prefix}-idle-anim`;
+    this.animWalk   = `${prefix}-walk-anim`;
+    this.animAttack = `${prefix}-attack-anim`;
+    this.animHit    = `${prefix}-hit-anim`;
+    this.play(this.animIdle);
+  }
 
   private playAnim(key: string) {
     if (!key || this.currentAnimKey === key) return;

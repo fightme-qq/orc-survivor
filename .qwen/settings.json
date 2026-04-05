@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell *)",
+      "Bash(node *)",
+      "Bash(python *)",
+      "Bash(del *)",
+      "Bash(rmdir *)",
+      "Bash(git checkout *)",
+      "Bash(git add *)"
+    ]
+  },
+  "$version": 3
+}

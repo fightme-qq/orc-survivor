@@ -24,10 +24,7 @@ export class Vampire extends BaseEnemy {
       b.patrolSpeed, b.leashRange, b.patrolPause,
       b.knockbackForce,
     );
-    this.animIdle   = 'vampire-idle-anim';
-    this.animWalk   = 'vampire-walk-anim';
-    this.animAttack = 'vampire-attack-anim';
-    this.animHit    = 'vampire-hit-anim';
-    this.play(this.animIdle);
+    this.barOffsetY = -10;
+    this.setupAnimations('vampire');
   }
 }
