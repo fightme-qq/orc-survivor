@@ -9,7 +9,20 @@
     "knockbackForce": 300,
     "knockbackDuration": 150,
     "hitboxSize": 40,
-    "hitboxOffset": 38
+    "hitboxOffset": 38,
+    "attack2": {
+      "damage": 140,
+      "cooldown": 800,
+      "dashForce": 500,
+      "dashDuration": 120,
+      "hitboxSize": 30,
+      "hitboxOffset": 80
+    },
+    "attack3": {
+      "damage": 80,
+      "cooldown": 1200,
+      "radius": 90
+    }
   },
   "enemies": {
     "skeleton": {
@@ -21,9 +34,25 @@
       "attackRange": 50,
       "attackCooldown": 800,
       "invincibilityDuration": 500,
+      "knockbackForce": 50,
       "patrolSpeed": 0.5,
-      "leashRange": 150,
+      "leashRange": 600,
       "patrolPause": 1500
+    },
+    "orc": {
+      "hp": 600,
+      "armor": 20,
+      "attack": 120,
+      "speed": 100,
+      "aggroRange": 150,
+      "attackRange": 65,
+      "attackCooldown": 1000,
+      "invincibilityDuration": 600,
+      "knockbackForce": 20,
+      "spawnChance": 0.15,
+      "patrolSpeed": 0.4,
+      "leashRange": 500,
+      "patrolPause": 2000
     },
     "vampire": {
       "hp": 450,
@@ -31,14 +60,30 @@
       "attack": 80,
       "speed": 170,
       "aggroRange": 130,
-      "attackRange": 45,
+      "attackRange": 50,
       "attackCooldown": 600,
       "invincibilityDuration": 400,
+      "knockbackForce": 50,
       "spawnChance": 0.3,
       "patrolSpeed": 0.5,
-      "leashRange": 195,
+      "leashRange": 700,
       "patrolPause": 1200
     }
+  },
+  "coins": {
+    "silverFrame": 131,
+    "goldFrame":   130,
+    "redFrame":    128,
+    "silverValue": 1,
+    "goldValue":   10,
+    "redValue":    100
+  },
+  "trap": {
+    "damage": 60,
+    "cooldown": 3000,
+    "activeDuration": 500,
+    "radius": 36,
+    "perRoom": { "min": 1, "max": 2 }
   },
   "dungeon": {
     "mapWidth": 40,
@@ -49,7 +94,7 @@
     "roomPadding": 1,
     "corridorWidth": 1,
     "extraCorridors": 1,
-    "enemiesPerRoom": { "min": 2, "max": 4 },
-    "maxEnemiesPerRoom": 5
+    "enemiesPerRoom": { "min": 1, "max": 3 },
+    "maxEnemiesPerRoom": 3
   }
 }

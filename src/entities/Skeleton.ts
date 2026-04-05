@@ -3,10 +3,13 @@ import balance from '../data/balance.json';
 import { BaseEnemy } from './BaseEnemy';
 import { SCALE } from '../utils/constants';
 
-const BODY_W    = 10;
-const BODY_H    = 8;
-const BODY_OFFX = 33;
-const BODY_OFFY = 58;
+// Body covers visible character pixels head-to-feet, full width.
+// OFFX = (32 - BODY_W) / 2, OFFY = (32 - BODY_H) / 2
+// World width = 12 * 3 = 36px → fits in 1-tile corridor (48px).
+const BODY_W    = 12;
+const BODY_H    = 12;
+const BODY_OFFX = 10; // (32 - 12) / 2 = 10
+const BODY_OFFY =  15; // (32 - 15) / 2 = 8.5, rounded to 10
 
 export class Skeleton extends BaseEnemy {
   constructor(scene: Phaser.Scene, x: number, y: number) {
@@ -19,6 +22,7 @@ export class Skeleton extends BaseEnemy {
       b.aggroRange, b.attack, b.attackRange, b.attackCooldown,
       b.invincibilityDuration,
       b.patrolSpeed, b.leashRange, b.patrolPause,
+      b.knockbackForce,
     );
     this.animIdle   = 'skeleton-idle-anim';
     this.animWalk   = 'skeleton-walk-anim';

@@ -29,6 +29,8 @@ export class UIScene extends Phaser.Scene {
   private hpText!:    Phaser.GameObjects.Text;
   private floorText!: Phaser.GameObjects.Text;
 
+  private coinTexts!: [Phaser.GameObjects.Text, Phaser.GameObjects.Text, Phaser.GameObjects.Text];
+
   // Minimap data
   private tiles:    number[][] = [];
   private revealed: boolean[][] = []; // cumulative, never resets mid-floor
@@ -69,6 +71,24 @@ export class UIScene extends Phaser.Scene {
       fontSize: '11px', color: '#ffffff', stroke: '#000000', strokeThickness: 2,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(103);
 
+    // Coin display — below HP bar
+    const coinY  = PAD + BAR_H + 10;
+    const iconSz = 16; // display size of each coin icon
+    const bc = balance.coins;
+    const coinDefs = [
+      { frame: bc.redFrame,    x: PAD },
+      { frame: bc.goldFrame,   x: PAD + 55 },
+      { frame: bc.silverFrame, x: PAD + 110 },
+    ] as const;
+    this.coinTexts = coinDefs.map(def => {
+      this.add.image(def.x + iconSz / 2, coinY + iconSz / 2, 'icons', def.frame)
+        .setDisplaySize(iconSz, iconSz).setScrollFactor(0).setDepth(100);
+      return this.add.text(def.x + iconSz + 3, coinY + iconSz / 2, '0', {
+        fontSize: '11px', color: '#ffffff', stroke: '#000000', strokeThickness: 2,
+      }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(101);
+    }) as unknown as [Phaser.GameObjects.Text, Phaser.GameObjects.Text, Phaser.GameObjects.Text];
+    this.onCoinsChanged(this.registry.get('coinValue') ?? 0);
+
     // Floor label
     this.floorText = this.add.text(800 - PAD, PAD + BAR_H / 2, 'Floor 1', {
       fontSize: '13px', color: '#ffffff', stroke: '#000000', strokeThickness: 3,
@@ -91,16 +111,18 @@ export class UIScene extends Phaser.Scene {
     const dungeonData = this.registry.get('dungeonData');
     if (dungeonData) this.onDungeonReady(dungeonData);
 
-    this.game.events.on('playerHpChanged', this.onHpChanged,   this);
-    this.game.events.on('floorChanged',    this.onFloorChanged, this);
-    this.game.events.on('dungeonReady',    this.onDungeonReady, this);
-    this.game.events.on('playerMoved',     this.onPlayerMoved,  this);
+    this.game.events.on('playerHpChanged', this.onHpChanged,    this);
+    this.game.events.on('floorChanged',    this.onFloorChanged,  this);
+    this.game.events.on('dungeonReady',    this.onDungeonReady,  this);
+    this.game.events.on('playerMoved',     this.onPlayerMoved,   this);
+    this.game.events.on('coinsChanged',    this.onCoinsChanged,  this);
 
     this.events.once('shutdown', () => {
-      this.game.events.off('playerHpChanged', this.onHpChanged,   this);
-      this.game.events.off('floorChanged',    this.onFloorChanged, this);
-      this.game.events.off('dungeonReady',    this.onDungeonReady, this);
-      this.game.events.off('playerMoved',     this.onPlayerMoved,  this);
+      this.game.events.off('playerHpChanged', this.onHpChanged,    this);
+      this.game.events.off('floorChanged',    this.onFloorChanged,  this);
+      this.game.events.off('dungeonReady',    this.onDungeonReady,  this);
+      this.game.events.off('playerMoved',     this.onPlayerMoved,   this);
+      this.game.events.off('coinsChanged',    this.onCoinsChanged,  this);
     });
   }
 
@@ -124,6 +146,16 @@ export class UIScene extends Phaser.Scene {
     this.hpBarFill.setSize(BAR_W * pct, BAR_H);
     this.hpBarFill.setFillStyle(pct > 0.5 ? 0x44cc44 : pct > 0.25 ? 0xddcc22 : 0xcc2222);
     this.hpText.setText(`${Math.round(current)} / ${max}`);
+  }
+
+  private onCoinsChanged(total: number) {
+    const bc = balance.coins;
+    const red    = Math.floor(total / bc.redValue);
+    const gold   = Math.floor((total % bc.redValue) / bc.goldValue);
+    const silver = total % bc.goldValue;
+    this.coinTexts[0].setText(String(red));
+    this.coinTexts[1].setText(String(gold));
+    this.coinTexts[2].setText(String(silver));
   }
 
   private onFloorChanged(floor: number) {

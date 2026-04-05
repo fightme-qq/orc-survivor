@@ -19,6 +19,8 @@ export interface DungeonMap {
   rooms: Room[];
   playerStart: { x: number; y: number }; // tile coords
   stairPos:    { x: number; y: number }; // tile coords
+  /** For each corridor floor tile (encoded row*W+col): corridor width (1 or 2) */
+  corridorWidths: Map<number, number>;
 }
 
 function rndInt(min: number, max: number): number {
@@ -32,26 +34,35 @@ function roomCenter(room: Room): { cx: number; cy: number } {
   };
 }
 
-function carveCorridor(tiles: number[][], r1: Room, r2: Room, corridorWidth: number) {
+function carveCorridor(
+  tiles: number[][], r1: Room, r2: Room,
+  corridorWidth: number,
+  widthMap: Map<number, number>,
+) {
   const { cx: x1, cy: y1 } = roomCenter(r1);
   const { cx: x2, cy: y2 } = roomCenter(r2);
   const w = corridorWidth;
+  const H = tiles.length;
+  const W = tiles[0].length;
 
-  // Horizontal then vertical (L-shape)
+  const mark = (row: number, col: number) => {
+    if (row >= 0 && row < H && col >= 0 && col < W) {
+      tiles[row][col] = TILE_FLOOR;
+      // Only tag tiles not already in a room (we tag after carving rooms)
+      widthMap.set(row * W + col, w);
+    }
+  };
+
+  // Horizontal leg then vertical leg (L-shape)
   const minX = Math.min(x1, x2);
   const maxX = Math.max(x1, x2);
-  for (let col = minX; col <= maxX; col++) {
-    for (let dw = 0; dw < w; dw++) {
-      if (y1 + dw < tiles.length) tiles[y1 + dw][col] = TILE_FLOOR;
-    }
-  }
+  for (let col = minX; col <= maxX; col++)
+    for (let dw = 0; dw < w; dw++) mark(y1 + dw, col);
+
   const minY = Math.min(y1, y2);
   const maxY = Math.max(y1, y2);
-  for (let row = minY; row <= maxY; row++) {
-    for (let dw = 0; dw < w; dw++) {
-      if (row < tiles.length && x2 + dw < tiles[0].length) tiles[row][x2 + dw] = TILE_FLOOR;
-    }
-  }
+  for (let row = minY; row <= maxY; row++)
+    for (let dw = 0; dw < w; dw++) mark(row, x2 + dw);
 }
 
 // ── BSP Node ──────────────────────────────────────────────
@@ -130,24 +141,28 @@ function carveRooms(
   if (node.right) carveRooms(node.right, tiles, rooms, padding);
 }
 
-function connectNode(node: BSPNode, tiles: number[][], corridorWidth: number): void {
+function connectNode(
+  node: BSPNode, tiles: number[][],
+  widthMap: Map<number, number>,
+): void {
   if (!node.left || !node.right) return;
 
-  connectNode(node.left,  tiles, corridorWidth);
-  connectNode(node.right, tiles, corridorWidth);
+  connectNode(node.left,  tiles, widthMap);
+  connectNode(node.right, tiles, widthMap);
 
   const leftRoom  = getLeafRoom(node.left);
   const rightRoom = getLeafRoom(node.right);
   if (leftRoom && rightRoom) {
-    carveCorridor(tiles, leftRoom, rightRoom, corridorWidth);
+    const w = rndInt(1, 2); // each corridor independently 1 or 2 tiles wide
+    carveCorridor(tiles, leftRoom, rightRoom, w, widthMap);
   }
 }
 
-/** Returns any room from the subtree (picks deepest-left leaf) */
-function getLeafRoom(node: BSPNode): Room | null {
+/** Returns any room from the subtree (depth-first, left-first). */
+function getLeafRoom(node: BSPNode | null): Room | null {
+  if (!node) return null;
   if (node.room) return node.room;
-  return getLeafRoom(node.left ?? node.right!)
-    ?? (node.right ? getLeafRoom(node.right) : null);
+  return getLeafRoom(node.left) ?? getLeafRoom(node.right);
 }
 
 // ── Flood-fill connectivity check ────────────────────────
@@ -208,7 +223,6 @@ export function generateDungeon(): DungeonMap {
   const MAP_H    = d.mapHeight;
   const padding  = d.roomPadding;
   const minLeaf  = d.minLeafSize;
-  const corrW    = d.corridorWidth;
   const extras   = d.extraCorridors;
   const depth    = rndInt(d.bspDepthMin, d.bspDepthMax);
 
@@ -216,13 +230,16 @@ export function generateDungeon(): DungeonMap {
     new Array(MAP_W).fill(TILE_WALL)
   );
 
+  // widthMap: corridor floor tile key → corridor width (1 or 2)
+  const widthMap = new Map<number, number>();
+
   // Build BSP tree (leave 1-tile border)
   const root = makeNode(1, 1, MAP_W - 2, MAP_H - 2);
   splitNode(root, minLeaf, depth);
 
   const rooms: Room[] = [];
   carveRooms(root, tiles, rooms, padding);
-  connectNode(root, tiles, corrW);
+  connectNode(root, tiles, widthMap);
 
   // Guarantee connectivity: flood-fill from first room
   const start = rooms[0];
@@ -232,7 +249,7 @@ export function generateDungeon(): DungeonMap {
   for (const room of rooms) {
     const { cx, cy } = roomCenter(room);
     if (!reachable.has(cy * MAP_W + cx)) {
-      carveCorridor(tiles, start, room, corrW);
+      carveCorridor(tiles, start, room, 1, widthMap);
       reachable = floodFill(tiles, sx0, sy0);
     }
   }
@@ -241,7 +258,14 @@ export function generateDungeon(): DungeonMap {
   for (let i = 0; i < extras && rooms.length >= 2; i++) {
     const a = rooms[rndInt(0, rooms.length - 1)];
     const b = rooms[rndInt(0, rooms.length - 1)];
-    if (a !== b) carveCorridor(tiles, a, b, corrW);
+    if (a !== b) carveCorridor(tiles, a, b, rndInt(1, 2), widthMap);
+  }
+
+  // Remove widthMap entries that ended up inside room tiles
+  for (const room of rooms) {
+    for (let r = room.y; r < room.y + room.h; r++)
+      for (let c = room.x; c < room.x + room.w; c++)
+        widthMap.delete(r * MAP_W + c);
   }
 
   // Mark start room
@@ -265,15 +289,20 @@ export function generateDungeon(): DungeonMap {
     width: MAP_W,
     height: MAP_H,
     rooms,
-    playerStart: { x: sx0, y: sy0 },
-    stairPos:    { x: stairX, y: stairY },
+    playerStart:    { x: sx0,    y: sy0    },
+    stairPos:       { x: stairX, y: stairY },
+    corridorWidths: widthMap,
   };
 }
 
-/** Returns true if a wall tile borders at least one floor tile (for rendering) */
+/**
+ * Returns true if a wall tile borders at least one non-wall tile in a CARDINAL direction.
+ * Diagonal-only neighbours are intentionally excluded so inner-corner wall tiles
+ * don't receive a face sprite (they stay as the solid bg fill).
+ */
 export function isEdgeWall(tiles: number[][], col: number, row: number): boolean {
   if (tiles[row][col] !== TILE_WALL) return false;
-  const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+  const dirs = [[-1,0],[1,0],[0,-1],[0,1]]; // cardinal only
   for (const [dc, dr] of dirs) {
     const nr = row + dr;
     const nc = col + dc;

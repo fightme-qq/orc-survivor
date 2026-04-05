@@ -11,18 +11,33 @@ export class BootScene extends Phaser.Scene {
       frameWidth: 16, frameHeight: 16,
     });
 
-    // Player — 4 individual 16×16 frames (priests_idle/priest1/v1)
-    const base = 'assets/characters/priests_idle/priest1/v1/priest1_v1_';
-    this.load.image('_pf1', `${base}1.png`);
-    this.load.image('_pf2', `${base}2.png`);
-    this.load.image('_pf3', `${base}3.png`);
-    this.load.image('_pf4', `${base}4.png`);
+    // Soldier player — 100×100 spritesheets (no shadow variant)
+    const sol = 'assets/Characters(100x100)/Soldier/Soldier/';
+    this.load.spritesheet('soldier-idle',    `${sol}Soldier-Idle.png`,    { frameWidth: 100, frameHeight: 100 });
+    this.load.spritesheet('soldier-walk',    `${sol}Soldier-Walk.png`,    { frameWidth: 100, frameHeight: 100 });
+    this.load.spritesheet('soldier-attack1', `${sol}Soldier-Attack01.png`,{ frameWidth: 100, frameHeight: 100 });
+    this.load.spritesheet('soldier-attack2', `${sol}Soldier-Attack02.png`,{ frameWidth: 100, frameHeight: 100 });
+    this.load.spritesheet('soldier-attack3', `${sol}Soldier-Attack03.png`,{ frameWidth: 100, frameHeight: 100 });
+    this.load.spritesheet('soldier-hurt',    `${sol}Soldier-Hurt.png`,    { frameWidth: 100, frameHeight: 100 });
+    this.load.spritesheet('soldier-death',   `${sol}Soldier-Death.png`,   { frameWidth: 100, frameHeight: 100 });
 
     // Skeleton enemy animation sheets — all 32×32 frames
     this.load.spritesheet('skeleton-idle',   'assets/enemies/Enemy_Animations_Set/enemies-skeleton1_idle.png',        { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('skeleton-walk',   'assets/enemies/Enemy_Animations_Set/enemies-skeleton1_movement.png',    { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('skeleton-attack', 'assets/enemies/Enemy_Animations_Set/enemies-skeleton1_attack.png',      { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('skeleton-hit',    'assets/enemies/Enemy_Animations_Set/enemies-skeleton1_take_damage.png', { frameWidth: 32, frameHeight: 32 });
+
+    // Icons spritesheet (Raven Fantasy Icons, 32×32 grid, 16 cols)
+    this.load.spritesheet('icons', 'assets/Free - Raven Fantasy Icons/Full Spritesheet/32x32.png', {
+      frameWidth: 32, frameHeight: 32,
+    });
+
+    // Orc enemy — 100×100 frames (same pack as Soldier)
+    const orc = 'assets/Characters(100x100)/Orc/Orc/';
+    this.load.spritesheet('orc-idle',   `${orc}Orc-Idle.png`,      { frameWidth: 100, frameHeight: 100 });
+    this.load.spritesheet('orc-walk',   `${orc}Orc-Walk.png`,      { frameWidth: 100, frameHeight: 100 });
+    this.load.spritesheet('orc-attack', `${orc}Orc-Attack01.png`,  { frameWidth: 100, frameHeight: 100 });
+    this.load.spritesheet('orc-hit',    `${orc}Orc-Hurt.png`,      { frameWidth: 100, frameHeight: 100 });
 
     // Vampire enemy animation sheets — all 32×32 frames
     this.load.spritesheet('vampire-idle',   'assets/enemies/Enemy_Animations_Set/enemies-vampire_idle.png',        { frameWidth: 32, frameHeight: 32 });
@@ -44,26 +59,36 @@ export class BootScene extends Phaser.Scene {
   }
 
   create() {
-    // ── Player texture — compose 4 frames into a single 64×16 spritesheet ──
-    // Each frame is 16×16 px, loaded as individual images (_pf1.._pf4).
-    const playerCanvas = this.textures.createCanvas('player', 64, 16)!;
-    const ctx = (playerCanvas.getSourceImage() as HTMLCanvasElement).getContext('2d')!;
-    ['_pf1', '_pf2', '_pf3', '_pf4'].forEach((key, i) => {
-      const src = this.textures.get(key).getSourceImage() as HTMLImageElement;
-      ctx.drawImage(src, i * 16, 0, 16, 16);
+    // ── Soldier (player) animations ──────────────────────
+    this.anims.create({
+      key: 'player-idle',
+      frames: this.anims.generateFrameNumbers('soldier-idle', { start: 0, end: 5 }),
+      frameRate: 8, repeat: -1,
     });
-    playerCanvas.add(0, 0,  0, 0, 16, 16);
-    playerCanvas.add(1, 0, 16, 0, 16, 16);
-    playerCanvas.add(2, 0, 32, 0, 16, 16);
-    playerCanvas.add(3, 0, 48, 0, 16, 16);
-    playerCanvas.refresh();
-
-    // ── Player animations ────────────────────────────────
     this.anims.create({
       key: 'player-walk',
-      frames: this.anims.generateFrameNumbers('player', { start: 0, end: 3 }),
-      frameRate: 8,
-      repeat: -1,
+      frames: this.anims.generateFrameNumbers('soldier-walk', { start: 0, end: 7 }),
+      frameRate: 10, repeat: -1,
+    });
+    this.anims.create({
+      key: 'player-attack1',
+      frames: this.anims.generateFrameNumbers('soldier-attack1', { start: 0, end: 5 }),
+      frameRate: 14, repeat: 0,
+    });
+    this.anims.create({
+      key: 'player-attack2',
+      frames: this.anims.generateFrameNumbers('soldier-attack2', { start: 0, end: 5 }),
+      frameRate: 14, repeat: 0,
+    });
+    this.anims.create({
+      key: 'player-attack3',
+      frames: this.anims.generateFrameNumbers('soldier-attack3', { start: 0, end: 8 }),
+      frameRate: 16, repeat: 0,
+    });
+    this.anims.create({
+      key: 'player-hurt',
+      frames: this.anims.generateFrameNumbers('soldier-hurt', { start: 0, end: 3 }),
+      frameRate: 10, repeat: 0,
     });
 
     // ── Skeleton animations ──────────────────────────────
@@ -85,6 +110,28 @@ export class BootScene extends Phaser.Scene {
     this.anims.create({
       key: 'skeleton-hit-anim',
       frames: this.anims.generateFrameNumbers('skeleton-hit', { start: 0, end: 4 }),
+      frameRate: 10, repeat: 0,
+    });
+
+    // ── Orc animations ──────────────────────────────────
+    this.anims.create({
+      key: 'orc-idle-anim',
+      frames: this.anims.generateFrameNumbers('orc-idle', { start: 0, end: 5 }),
+      frameRate: 8, repeat: -1,
+    });
+    this.anims.create({
+      key: 'orc-walk-anim',
+      frames: this.anims.generateFrameNumbers('orc-walk', { start: 0, end: 7 }),
+      frameRate: 10, repeat: -1,
+    });
+    this.anims.create({
+      key: 'orc-attack-anim',
+      frames: this.anims.generateFrameNumbers('orc-attack', { start: 0, end: 5 }),
+      frameRate: 10, repeat: 0,
+    });
+    this.anims.create({
+      key: 'orc-hit-anim',
+      frames: this.anims.generateFrameNumbers('orc-hit', { start: 0, end: 3 }),
       frameRate: 10, repeat: 0,
     });
 
@@ -129,23 +176,23 @@ export class BootScene extends Phaser.Scene {
       frameRate: 6, repeat: -1,
     });
 
-    // ── Stair texture — peaks spritesheet (16×16 each) ───
-    const stairCanvas = this.textures.createCanvas('stair', 64, 16)!;
-    const sctx = (stairCanvas.getSourceImage() as HTMLCanvasElement).getContext('2d')!;
-    ['_peaks1', '_peaks2', '_peaks3', '_peaks4'].forEach((key, i) => {
+    // ── Trap texture — peaks spritesheet (16×16 each) ───
+    const trapCanvas = this.textures.createCanvas('trap', 64, 16)!;
+    const sctx = (trapCanvas.getSourceImage() as HTMLCanvasElement).getContext('2d')!;
+    ['_peaks4', '_peaks3', '_peaks2', '_peaks1'].forEach((key, i) => {
       const src = this.textures.get(key).getSourceImage() as HTMLImageElement;
       sctx.drawImage(src, i * 16, 0, 16, 16);
     });
-    stairCanvas.add(0, 0,  0, 0, 16, 16);
-    stairCanvas.add(1, 0, 16, 0, 16, 16);
-    stairCanvas.add(2, 0, 32, 0, 16, 16);
-    stairCanvas.add(3, 0, 48, 0, 16, 16);
-    stairCanvas.refresh();
+    trapCanvas.add(0, 0,  0, 0, 16, 16);
+    trapCanvas.add(1, 0, 16, 0, 16, 16);
+    trapCanvas.add(2, 0, 32, 0, 16, 16);
+    trapCanvas.add(3, 0, 48, 0, 16, 16);
+    trapCanvas.refresh();
 
     this.anims.create({
-      key: 'stair-anim',
-      frames: this.anims.generateFrameNumbers('stair', { start: 0, end: 3 }),
-      frameRate: 5, repeat: -1,
+      key: 'trap-anim',
+      frames: this.anims.generateFrameNumbers('trap', { start: 0, end: 3 }),
+      frameRate: 8, repeat: 0,
     });
 
     this.scene.start('GameScene');

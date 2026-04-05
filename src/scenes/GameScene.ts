@@ -5,18 +5,21 @@ import { calcDamage } from '../utils/combat';
 import { BaseEnemy } from '../entities/BaseEnemy';
 import { Skeleton } from '../entities/Skeleton';
 import { Vampire } from '../entities/Vampire';
+import { Orc } from '../entities/Orc';
+import { Player } from '../entities/Player';
 import { SCALE, TILE_S } from '../utils/constants';
 
 // Tileset frame indices (Dungeon_Tileset.png, 10-col grid of 16×16, frame = row*10+col)
-const FRAME_FLOOR      = 11; // row 1 col 1 — interior floor
-const FRAME_WALL_TOP   =  1; // row 0 col 1 — top wall face (brownish ledge at top)
-const FRAME_WALL_LEFT  =  0; // row 0 col 0 — left wall face  (brownish strip on right)
-const FRAME_WALL_RIGHT =  5; // row 0 col 5 — right wall face (brownish strip on left)
-const FRAME_WALL_FILL  =  6; // row 0 col 6 — dark fill (no directional strip)
+const FRAME_FLOOR        = 11; // row 1 col 1 — interior floor
+const FRAME_WALL_TOP     =  1; // row 0 col 1 — top wall face
+const FRAME_WALL_LEFT    =  0; // row 0 col 0 — left wall face  (strip on right)
+const FRAME_WALL_RIGHT   =  5; // row 0 col 5 — right wall face (strip on left)
+const FRAME_CORNER_TL    =  2; // row 0 col 2 — inner corner: floor below + right
+const FRAME_CORNER_TR    =  4; // row 0 col 4 — inner corner: floor below + left
 
 /**
- * Choose the best wall frame based on which cardinal neighbors are floor.
- * Priority: top > left > right > fill.
+ * Choose the best wall frame based on cardinal floor neighbors.
+ * Corners (two open sides) are handled before single-side faces.
  */
 function getWallFrame(tiles: number[][], col: number, row: number, mapW: number, mapH: number): number {
   const isFloor = (r: number, c: number) =>
@@ -27,62 +30,63 @@ function getWallFrame(tiles: number[][], col: number, row: number, mapW: number,
   const floorLeft  = isFloor(row, col - 1);
   const floorRight = isFloor(row, col + 1);
 
-  if (!floorAbove && floorBelow) return FRAME_WALL_TOP;   // top face of a room
-  if (!floorLeft  && floorRight) return FRAME_WALL_LEFT;  // left wall, strip faces room
-  if (!floorRight && floorLeft)  return FRAME_WALL_RIGHT; // right wall, strip faces room
-  if (floorAbove  && !floorBelow) return FRAME_WALL_TOP;  // bottom edge — reuse top tile
-  return FRAME_WALL_FILL;
+  // Inner corners — check before single-direction faces
+  if (floorBelow && floorRight && !floorAbove && !floorLeft) return FRAME_CORNER_TL;
+  if (floorBelow && floorLeft  && !floorAbove && !floorRight) return FRAME_CORNER_TR;
+
+  if (!floorAbove && floorBelow)  return FRAME_WALL_TOP;   // top face
+  if (!floorLeft  && floorRight)  return FRAME_WALL_LEFT;  // left face
+  if (!floorRight && floorLeft)   return FRAME_WALL_RIGHT; // right face
+  if (floorAbove  && !floorBelow) return FRAME_WALL_TOP;   // bottom edge
+  return FRAME_WALL_TOP; // fallback
 }
 
-const STAIR_RADIUS = TILE_S / 2; // how close to stair to trigger
+const STAIR_RADIUS = TILE_S; // how close to stair to trigger (covers 2×2 visual)
 
 export class GameScene extends Phaser.Scene {
-  private player!: Phaser.Physics.Arcade.Sprite;
+  private player!: Player;
   private walls!: Phaser.Physics.Arcade.StaticGroup;
   private enemies!: Phaser.Physics.Arcade.Group;
 
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: { up: Phaser.Input.Keyboard.Key; down: Phaser.Input.Keyboard.Key; left: Phaser.Input.Keyboard.Key; right: Phaser.Input.Keyboard.Key; };
   private spaceKey!: Phaser.Input.Keyboard.Key;
+  private qKey!: Phaser.Input.Keyboard.Key;
+  private eKey!: Phaser.Input.Keyboard.Key;
 
-  private playerHp = balance.player.hp;
-  private facingDir = { x: 1, y: 0 };
-  private attackTimer = 0;
-  private playerInvincible = false;
-  private playerInvincibilityTimer = 0;
-  private playerBlinkTimer = 0;
-  private playerKnockTimer = 0;
-
-  private stairX = 0;
-  private stairY = 0;
+  private stairX    = 0;
+  private stairY    = 0;
   private stairUsed = false;
-  private floor = 1;
+  private floor     = 1;
+  private traps: Array<{ sprite: Phaser.GameObjects.Sprite; timer: number; firing: boolean }> = [];
+
+  private coins!: Phaser.Physics.Arcade.StaticGroup;
+  private coinValue = 0; // total in silver units
 
   constructor() {
     super({ key: 'GameScene' });
   }
 
   create() {
-    // Restore state from registry (floor transitions carry HP/floor; game over resets them)
-    this.floor    = this.registry.get('floor')    ?? 1;
-    this.playerHp = this.registry.get('playerHp') ?? balance.player.hp;
-    // Write back so UIScene can read synchronously on its create()
-    this.registry.set('floor', this.floor);
-    this.registry.set('playerHp', this.playerHp);
-    this.attackTimer = 0;
-    this.playerInvincible = false;
-    this.playerKnockTimer = 0;
-    this.stairUsed = false;
+    this.floor      = this.registry.get('floor') ?? 1;
+    this.coinValue  = this.registry.get('coinValue') ?? 0;
+    this.stairUsed  = false;
 
     this.cameras.main.setBackgroundColor(0x25131a);
     const dungeon = generateDungeon();
-    const { tiles, width, height, playerStart, stairPos } = dungeon;
+    const { tiles, width, height, playerStart, stairPos, corridorWidths } = dungeon;
 
     this.stairX = stairPos.x * TILE_S + TILE_S / 2;
     this.stairY = stairPos.y * TILE_S + TILE_S / 2;
 
     this.walls   = this.physics.add.staticGroup();
     this.enemies = this.physics.add.group();
+    this.coins   = this.physics.add.staticGroup();
+
+    // Solid fill for ALL wall tiles — same color as camera bg so inner walls are invisible
+    // and only the edge-facing tileset frames show.
+    const wallFill = this.add.graphics().setDepth(-2);
+    wallFill.fillStyle(0x25131a, 1);
 
     for (let row = 0; row < height; row++) {
       for (let col = 0; col < width; col++) {
@@ -90,16 +94,23 @@ export class GameScene extends Phaser.Scene {
         const x = col * TILE_S + TILE_S / 2;
         const y = row * TILE_S + TILE_S / 2;
 
-        if (t === TILE_FLOOR || t === TILE_STAIR) {
+        if (t === TILE_FLOOR) {
           this.add.image(x, y, 'tileset', FRAME_FLOOR).setScale(SCALE).setDepth(-1);
-          if (t === TILE_STAIR) {
-            const stairSprite = this.add.sprite(x, y, 'stair');
-            stairSprite.setScale(SCALE).setDepth(0).play('stair-anim');
+        } else if (t === TILE_STAIR) {
+          this.add.image(x, y, 'tileset', FRAME_FLOOR).setScale(SCALE).setDepth(-1);
+          // Ladder prop: frame 39 = top rail, 49 = bottom rail (1 tile wide × 2 tall)
+          const hs = TILE_S / 2;
+          this.add.image(x, y - hs, 'tileset', 39).setScale(SCALE).setDepth(0);
+          this.add.image(x, y + hs, 'tileset', 49).setScale(SCALE).setDepth(0);
+        } else if (t === TILE_WALL) {
+          // Fill every wall tile with solid bg color (covers inner walls seamlessly)
+          wallFill.fillRect(col * TILE_S, row * TILE_S, TILE_S, TILE_S);
+          // Decorative face — only for edge walls (also adds physics body)
+          if (isEdgeWall(tiles, col, row)) {
+            const frame = getWallFrame(tiles, col, row, width, height);
+            const wall = this.walls.create(x, y, 'tileset', frame) as Phaser.Physics.Arcade.Sprite;
+            wall.setScale(SCALE).setDepth(0).refreshBody();
           }
-        } else if (isEdgeWall(tiles, col, row)) {
-          const frame = getWallFrame(tiles, col, row, width, height);
-          const wall = this.walls.create(x, y, 'tileset', frame) as Phaser.Physics.Arcade.Sprite;
-          wall.setScale(SCALE).setDepth(0).refreshBody();
         }
       }
     }
@@ -107,28 +118,192 @@ export class GameScene extends Phaser.Scene {
     // Spawn player
     const px = playerStart.x * TILE_S + TILE_S / 2;
     const py = playerStart.y * TILE_S + TILE_S / 2;
-    this.player = this.physics.add.sprite(px, py, 'player');
-    this.player.setScale(SCALE);
-    this.player.body!.setSize(10, 8);
-    this.player.body!.setOffset(3, 8);
+    this.player = new Player(this, px, py, this.registry.get('playerHp'));
+    this.player.onHpChanged = (current, max) => {
+      this.registry.set('playerHp', current);
+      this.game.events.emit('playerHpChanged', current, max);
+    };
+    this.player.onDie = () => this.showGameOver();
+
+    // Sync registry so UIScene.create() reads correct values synchronously
+    this.registry.set('floor',    this.floor);
+    this.registry.set('playerHp', this.player.hp);
+
+    // Input
+    this.cursors  = this.input.keyboard!.createCursorKeys();
+    this.spaceKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.qKey     = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
+    this.eKey     = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+    this.wasd = {
+      up:    this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+      down:  this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+      left:  this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+      right: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+    };
+    this.player.setupInput(this.cursors, this.wasd);
+
+    this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+      if (ptr.leftButtonDown())  this.processAttack1();
+      if (ptr.rightButtonDown()) this.processAttack2();
+    });
 
     // Spawn torches — 1-2 per normal room, on top wall face tiles
     for (const room of dungeon.rooms.filter(r => r.type !== 'start')) {
       const count = Phaser.Math.Between(1, 2);
       for (let i = 0; i < count; i++) {
         const col = Phaser.Math.Between(room.x + 1, room.x + room.w - 2);
-        const row = room.y; // top wall row of room interior
-        const tx = col * TILE_S + TILE_S / 2;
-        const ty = row * TILE_S + TILE_S / 2;
-        const torch = this.add.sprite(tx, ty, 'torch');
-        torch.setScale(SCALE).setDepth(ty + 1).play('torch-anim');
+        const row = room.y;
+        const tx  = col * TILE_S + TILE_S / 2;
+        const ty  = row * TILE_S + TILE_S / 2;
+        this.add.sprite(tx, ty, 'torch').setScale(SCALE).setDepth(ty + 1).play('torch-anim');
+      }
+    }
+
+    // ── Traps ─────────────────────────────────────────────────
+    this.traps = [];
+    const td = balance.trap;
+
+    // Safe spawn — only places on actual floor tiles, never on walls
+    const spawnTrap = (tc: number, tr: number) => {
+      if (tr < 0 || tr >= height || tc < 0 || tc >= width) return;
+      if (tiles[tr][tc] === TILE_WALL) return;
+      const tx = tc * TILE_S + TILE_S / 2;
+      const ty = tr * TILE_S + TILE_S / 2;
+      const sprite = this.add.sprite(tx, ty, 'trap', 0);
+      sprite.setScale(2.5).setDepth(ty).setVisible(true);
+      this.traps.push({ sprite, timer: Phaser.Math.Between(500, td.cooldown), firing: false });
+    };
+
+    const inRoom = (c: number, r: number) =>
+      dungeon.rooms.some(rm => c >= rm.x && c < rm.x + rm.w && r >= rm.y && r < rm.y + rm.h);
+
+    // ── Room trap patterns ────────────────────────────────────
+    // 7 named patterns; each eligible room picks one randomly.
+    type TrapPattern = (room: typeof dungeon.rooms[0]) => void;
+
+    const patternLineH: TrapPattern = (room) => {
+      if (room.w < 4) return;
+      const len = Phaser.Math.Between(2, Math.min(room.w - 2, 5));
+      const r   = Phaser.Math.Between(room.y + 1, room.y + room.h - 2);
+      const sc  = Phaser.Math.Between(room.x + 1, room.x + room.w - 1 - len);
+      for (let i = 0; i < len; i++) spawnTrap(sc + i, r);
+    };
+
+    const patternLineV: TrapPattern = (room) => {
+      if (room.h < 4) return;
+      const len = Phaser.Math.Between(2, Math.min(room.h - 2, 5));
+      const c   = Phaser.Math.Between(room.x + 1, room.x + room.w - 2);
+      const sr  = Phaser.Math.Between(room.y + 1, room.y + room.h - 1 - len);
+      for (let i = 0; i < len; i++) spawnTrap(c, sr + i);
+    };
+
+    const patternSquare: TrapPattern = (room) => {
+      if (room.w < 5 || room.h < 5) return patternLineH(room);
+      const sc = Phaser.Math.Between(room.x + 1, room.x + room.w - 3);
+      const sr = Phaser.Math.Between(room.y + 1, room.y + room.h - 3);
+      for (let dr = 0; dr < 2; dr++)
+        for (let dc = 0; dc < 2; dc++)
+          spawnTrap(sc + dc, sr + dr);
+    };
+
+    const patternCross: TrapPattern = (room) => {
+      if (room.w < 5 || room.h < 5) return patternLineH(room);
+      const cx = Math.floor(room.x + room.w / 2);
+      const cy = Math.floor(room.y + room.h / 2);
+      const arm = Phaser.Math.Between(1, 2);
+      for (let d = -arm; d <= arm; d++) { spawnTrap(cx + d, cy); spawnTrap(cx, cy + d); }
+    };
+
+    const patternChecker: TrapPattern = (room) => {
+      if (room.w < 4 || room.h < 4) return patternLineH(room);
+      const cw = Phaser.Math.Between(2, Math.min(room.w - 2, 4));
+      const ch = Phaser.Math.Between(2, Math.min(room.h - 2, 4));
+      const sc = Phaser.Math.Between(room.x + 1, room.x + room.w - cw);
+      const sr = Phaser.Math.Between(room.y + 1, room.y + room.h - ch);
+      for (let dr = 0; dr < ch; dr++)
+        for (let dc = 0; dc < cw; dc++)
+          if ((dr + dc) % 2 === 0) spawnTrap(sc + dc, sr + dr);
+    };
+
+    const patternDiag: TrapPattern = (room) => {
+      const len = Phaser.Math.Between(2, Math.min(Math.min(room.w, room.h) - 2, 4));
+      const sc  = Phaser.Math.Between(room.x + 1, room.x + room.w - 1 - len);
+      const sr  = Phaser.Math.Between(room.y + 1, room.y + room.h - 1 - len);
+      for (let i = 0; i < len; i++) spawnTrap(sc + i, sr + i);
+    };
+
+    const patternBorder: TrapPattern = (room) => {
+      if (room.w < 6 || room.h < 6) return patternChecker(room);
+      // Inner border ring (1 tile inside room walls)
+      const x0 = room.x + 1, x1 = room.x + room.w - 2;
+      const y0 = room.y + 1, y1 = room.y + room.h - 2;
+      for (let c = x0; c <= x1; c++) { spawnTrap(c, y0); spawnTrap(c, y1); }
+      for (let r = y0 + 1; r < y1; r++) { spawnTrap(x0, r); spawnTrap(x1, r); }
+    };
+
+    const patterns: TrapPattern[] = [
+      patternLineH, patternLineV, patternSquare,
+      patternCross, patternChecker, patternDiag, patternBorder,
+    ];
+
+    const normalRooms = dungeon.rooms.filter(r => r.type === 'normal');
+    normalRooms.forEach((room, ri) => {
+      if (ri % 2 !== 0) return; // every 2nd room gets traps
+      const pick = patterns[Phaser.Math.Between(0, patterns.length - 1)];
+      pick(room);
+    });
+
+    // ── Corridor traps — full-width barrier every N tiles ────
+    // Horizontal corridors
+    for (let row = 1; row < height - 1; row++) {
+      let runStart = -1;
+      for (let col = 1; col <= width; col++) {
+        const isCorr = col < width && tiles[row][col] === TILE_FLOOR && !inRoom(col, row);
+        if (isCorr) {
+          if (runStart < 0) runStart = col;
+        } else if (runStart >= 0) {
+          const len = col - runStart;
+          if (len >= 4 && Math.random() < 0.45) {
+            // pick 1-2 positions inside the run and fill all corridor rows
+            const cnt = Phaser.Math.Between(1, Math.min(2, Math.floor(len / 3)));
+            const off = Phaser.Math.Between(1, len - cnt - 1);
+            for (let i = 0; i < cnt; i++) {
+              const c = runStart + off + i;
+              const w = corridorWidths.get(row * width + c) ?? 1;
+              for (let dw = 0; dw < w; dw++) spawnTrap(c, row + dw);
+            }
+          }
+          runStart = -1;
+        }
+      }
+    }
+    // Vertical corridors
+    for (let col = 1; col < width - 1; col++) {
+      let runStart = -1;
+      for (let row = 1; row <= height; row++) {
+        const isCorr = row < height && tiles[row][col] === TILE_FLOOR && !inRoom(col, row);
+        if (isCorr) {
+          if (runStart < 0) runStart = row;
+        } else if (runStart >= 0) {
+          const len = row - runStart;
+          if (len >= 4 && Math.random() < 0.45) {
+            const cnt = Phaser.Math.Between(1, Math.min(2, Math.floor(len / 3)));
+            const off = Phaser.Math.Between(1, len - cnt - 1);
+            for (let i = 0; i < cnt; i++) {
+              const r = runStart + off + i;
+              const w = corridorWidths.get(r * width + col) ?? 1;
+              for (let dw = 0; dw < w; dw++) spawnTrap(col + dw, r);
+            }
+          }
+          runStart = -1;
+        }
       }
     }
 
     // Spawn enemies — +1 per floor, capped at maxEnemiesPerRoom
     const baseMin = balance.dungeon.enemiesPerRoom.min;
     const baseMax = balance.dungeon.enemiesPerRoom.max;
-    const cap = balance.dungeon.maxEnemiesPerRoom;
+    const cap  = balance.dungeon.maxEnemiesPerRoom;
     const eMin = Math.min(baseMin + this.floor - 1, cap);
     const eMax = Math.min(baseMax + this.floor - 1, cap);
 
@@ -137,102 +312,70 @@ export class GameScene extends Phaser.Scene {
       for (let e = 0; e < count; e++) {
         const col = Phaser.Math.Between(room.x + 1, room.x + room.w - 2);
         const row = Phaser.Math.Between(room.y + 1, room.y + room.h - 2);
-        const ex = col * TILE_S + TILE_S / 2;
-        const ey = row * TILE_S + TILE_S / 2;
-        const enemy = Math.random() < balance.enemies.vampire.spawnChance
+        const ex  = col * TILE_S + TILE_S / 2;
+        const ey  = row * TILE_S + TILE_S / 2;
+        const r = Math.random();
+        const enemy = r < balance.enemies.orc.spawnChance
+          ? new Orc(this, ex, ey)
+          : r < balance.enemies.orc.spawnChance + balance.enemies.vampire.spawnChance
           ? new Vampire(this, ex, ey)
           : new Skeleton(this, ex, ey);
         enemy.setPlayer(this.player);
         enemy.setTiles(tiles);
         enemy.setRoom(room);
-        enemy.onDamagePlayer = (atk, fx, fy) => this.damagePlayer(atk, fx, fy);
+        enemy.onDamagePlayer = (atk, fx, fy) => this.player.takeDamage(atk, fx, fy);
         this.enemies.add(enemy);
       }
     }
 
+    // ── Coins — spawn one of each type in the start room ────────
+    const startRoom = dungeon.rooms.find(r => r.type === 'start');
+    if (startRoom) {
+      // Place coins along the bottom-left edge of the start room, away from player spawn
+      const bc = balance.coins;
+      const rx = (startRoom.x + 1) * TILE_S + TILE_S / 2;
+      const ry = (startRoom.y + startRoom.h - 2) * TILE_S + TILE_S / 2;
+      const coinDefs = [
+        { frame: bc.redFrame,    value: bc.redValue,    ox:  0 },
+        { frame: bc.goldFrame,   value: bc.goldValue,   ox: TILE_S },
+        { frame: bc.silverFrame, value: bc.silverValue, ox: TILE_S * 2 },
+      ];
+      for (const def of coinDefs) {
+        const s = this.coins.create(rx + def.ox, ry, 'icons', def.frame) as Phaser.Physics.Arcade.Sprite;
+        s.setScale(1.5).setDepth(ry + 16).refreshBody();
+        s.setData('value', def.value);
+      }
+    }
+    this.physics.add.overlap(this.player, this.coins, (_p, coin) => {
+      const c = coin as Phaser.Physics.Arcade.Sprite;
+      this.coinValue += c.getData('value') as number;
+      c.destroy();
+      this.registry.set('coinValue', this.coinValue);
+      this.game.events.emit('coinsChanged', this.coinValue);
+    });
+
     this.physics.add.collider(this.player, this.walls);
     this.physics.add.collider(this.enemies, this.walls);
-    this.physics.add.collider(this.enemies, this.enemies);
 
     this.cameras.main.setBounds(0, 0, width * TILE_S, height * TILE_S);
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
 
-    this.cursors  = this.input.keyboard!.createCursorKeys();
-    this.spaceKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-    this.wasd = {
-      up:    this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-      down:  this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-      left:  this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-      right: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D),
-    };
-
-    this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
-      if (ptr.leftButtonDown()) this.doAttack();
-    });
-
     this.scene.launch('UIScene');
-    this.game.events.emit('playerHpChanged', this.playerHp, balance.player.hp);
+    this.game.events.emit('playerHpChanged', this.player.hp, this.player.maxHp);
     this.game.events.emit('floorChanged', this.floor);
-    const dungeonData = {
-      tiles,
-      mapWidth: width,
-      mapHeight: height,
-      stairTileX: stairPos.x,
-      stairTileY: stairPos.y,
-    };
+    const dungeonData = { tiles, mapWidth: width, mapHeight: height, stairTileX: stairPos.x, stairTileY: stairPos.y };
     this.registry.set('dungeonData', dungeonData);
     this.game.events.emit('dungeonReady', dungeonData);
   }
 
   update(_time: number, delta: number) {
-    if (this.attackTimer > 0) this.attackTimer -= delta;
+    if (!this.player.active) return;
 
-    if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.doAttack();
+    if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.processAttack1();
+    if (Phaser.Input.Keyboard.JustDown(this.qKey))     this.processAttack2();
+    if (Phaser.Input.Keyboard.JustDown(this.eKey))     this.processAttack3();
 
-    const body = this.player.body as Phaser.Physics.Arcade.Body;
-
-    if (this.playerKnockTimer > 0) {
-      this.playerKnockTimer -= delta;
-    } else {
-      const speed = balance.player.speed;
-      let vx = 0, vy = 0;
-
-      if (this.cursors.left.isDown  || this.wasd.left.isDown)  vx = -speed;
-      else if (this.cursors.right.isDown || this.wasd.right.isDown) vx = speed;
-      if (this.cursors.up.isDown   || this.wasd.up.isDown)   vy = -speed;
-      else if (this.cursors.down.isDown  || this.wasd.down.isDown)  vy = speed;
-
-      if (vx !== 0 && vy !== 0) { vx *= Math.SQRT1_2; vy *= Math.SQRT1_2; }
-      body.setVelocity(vx, vy);
-
-      if (vx !== 0 || vy !== 0) {
-        const len = Math.sqrt(vx * vx + vy * vy);
-        this.facingDir = { x: vx / len, y: vy / len };
-        if (vx < 0) this.player.setFlipX(true);
-        else if (vx > 0) this.player.setFlipX(false);
-        this.player.play('player-walk', true); // true = don't restart if already playing
-      } else {
-        if (this.player.anims.isPlaying) this.player.anims.stop();
-        this.player.setFrame(0); // idle = first frame of row 0 (standing pose)
-      }
-    }
-
-    // Player blink during invincibility
-    if (this.playerInvincible) {
-      this.playerInvincibilityTimer -= delta;
-      this.playerBlinkTimer -= delta;
-      if (this.playerBlinkTimer <= 0) {
-        this.player.setAlpha(this.player.alpha > 0.5 ? 0.2 : 1);
-        this.playerBlinkTimer = 80;
-      }
-      if (this.playerInvincibilityTimer <= 0) {
-        this.playerInvincible = false;
-        this.player.setAlpha(1);
-      }
-    }
-
-    this.player.setDepth(this.player.y + this.player.displayHeight);
-
+    // Minimap data
     const enemyTiles = this.enemies.getChildren()
       .filter(e => (e as BaseEnemy).active)
       .map(e => ({ tileX: (e as BaseEnemy).x / TILE_S, tileY: (e as BaseEnemy).y / TILE_S }));
@@ -242,6 +385,25 @@ export class GameScene extends Phaser.Scene {
       enemies: enemyTiles,
     });
 
+    // Trap update
+    for (const trap of this.traps) {
+      if (trap.firing) continue;
+      trap.timer -= delta;
+      if (trap.timer <= 0) {
+        trap.firing = true;
+        trap.sprite.play('trap-anim');
+        const dist = Phaser.Math.Distance.Between(trap.sprite.x, trap.sprite.y, this.player.x, this.player.y);
+        if (dist < balance.trap.radius && this.player.active) {
+          this.player.takeDamage(balance.trap.damage, trap.sprite.x, trap.sprite.y);
+        }
+        this.time.delayedCall(balance.trap.activeDuration, () => {
+          trap.firing = false;
+          trap.timer  = balance.trap.cooldown;
+          trap.sprite.setFrame(0);
+        });
+      }
+    }
+
     // Stair check
     if (!this.stairUsed) {
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.stairX, this.stairY);
@@ -249,87 +411,70 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // ── Attacks ───────────────────────────────────────────────────
+
+  private hitEnemiesRect(hitRect: Phaser.Geom.Rectangle, dmgBase: number): void {
+    for (const child of this.enemies.getChildren()) {
+      const enemy = child as BaseEnemy;
+      if (!enemy.active) continue;
+      const half = enemy.displayWidth / 2;
+      const er = new Phaser.Geom.Rectangle(enemy.x - half, enemy.y - half, enemy.displayWidth, enemy.displayHeight);
+      if (!Phaser.Geom.Rectangle.Overlaps(hitRect, er)) continue;
+      const dmg = calcDamage(dmgBase, enemy.getArmor());
+      const kb  = Phaser.Math.Angle.Between(this.player.x, this.player.y, enemy.x, enemy.y);
+      const ekb = enemy.getKnockbackForce();
+      enemy.takeDamage(dmg, Math.cos(kb) * ekb, Math.sin(kb) * ekb);
+    }
+  }
+
+  private hitEnemiesCircle(circle: Phaser.Geom.Circle, dmgBase: number): void {
+    for (const child of this.enemies.getChildren()) {
+      const enemy = child as BaseEnemy;
+      if (!enemy.active) continue;
+      if (!Phaser.Geom.Circle.Contains(circle, enemy.x, enemy.y)) continue;
+      const dmg = calcDamage(dmgBase, enemy.getArmor());
+      const kb  = Phaser.Math.Angle.Between(this.player.x, this.player.y, enemy.x, enemy.y);
+      const ekb = enemy.getKnockbackForce();
+      enemy.takeDamage(dmg, Math.cos(kb) * ekb, Math.sin(kb) * ekb);
+    }
+  }
+
+  // Attack 1 — basic swing (LMB / Space)
+  private processAttack1(): void {
+    const hit = this.player.tryAttack1();
+    if (hit) this.hitEnemiesRect(hit, balance.player.attack);
+  }
+
+  // Attack 2 — lunge (RMB / Q)
+  private processAttack2(): void {
+    const hit = this.player.tryAttack2();
+    if (hit) this.hitEnemiesRect(hit, balance.player.attack2.damage);
+  }
+
+  // Attack 3 — spin AOE (E)
+  private processAttack3(): void {
+    const hit = this.player.tryAttack3();
+    if (hit) this.hitEnemiesCircle(hit, balance.player.attack3.damage);
+  }
+
+  // ── Floor / Game Over ─────────────────────────────────────────
+
   private nextFloor() {
     this.stairUsed = true;
-    this.registry.set('floor', this.floor + 1);
-    this.registry.set('playerHp', this.playerHp);
+    this.registry.set('floor',     this.floor + 1);
+    this.registry.set('playerHp',  this.player.hp);
+    this.registry.set('coinValue', this.coinValue);
     this.scene.stop('UIScene');
     this.scene.restart();
   }
 
-  private doAttack() {
-    if (this.attackTimer > 0) return;
-    this.attackTimer = balance.player.attackCooldown;
-
-    // Direction toward mouse in world space
-    const ptr = this.input.activePointer;
-    const world = this.cameras.main.getWorldPoint(ptr.x, ptr.y);
-    const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, world.x, world.y);
-    const dx = Math.cos(angle);
-    const dy = Math.sin(angle);
-
-    const hitSize   = balance.player.hitboxSize;
-    const hitOffset = balance.player.hitboxOffset;
-    const hx = this.player.x + dx * hitOffset;
-    const hy = this.player.y + dy * hitOffset;
-
-    const flash = this.add.rectangle(hx, hy, hitSize, hitSize, 0xffffff, 0.85);
-    flash.setDepth(500);
-    this.time.delayedCall(100, () => flash.destroy());
-
-    const hitRect = new Phaser.Geom.Rectangle(hx - hitSize / 2, hy - hitSize / 2, hitSize, hitSize);
-    const kbForce = balance.player.knockbackForce;
-
-    for (const child of this.enemies.getChildren()) {
-      const enemy = child as BaseEnemy;
-      if (!enemy.active) continue;
-
-      // Overlap with enemy display bounds (48x48 centered at enemy position)
-      const half = enemy.displayWidth / 2;
-      const enemyRect = new Phaser.Geom.Rectangle(enemy.x - half, enemy.y - half, enemy.displayWidth, enemy.displayHeight);
-      if (!Phaser.Geom.Rectangle.Overlaps(hitRect, enemyRect)) continue;
-
-      const dmg = calcDamage(balance.player.attack, enemy.getArmor());
-      const kb = Phaser.Math.Angle.Between(this.player.x, this.player.y, enemy.x, enemy.y);
-      enemy.takeDamage(dmg, Math.cos(kb) * kbForce, Math.sin(kb) * kbForce);
-    }
-  }
-
-  private damagePlayer(rawAtk: number, fromX: number, fromY: number) {
-    if (this.playerInvincible) return;
-
-    const dmg = calcDamage(rawAtk, balance.player.armor);
-    this.playerHp -= dmg;
-    this.game.events.emit('playerHpChanged', Math.max(0, this.playerHp), balance.player.hp);
-
-    if (this.playerHp <= 0) {
-      this.showGameOver();
-      return;
-    }
-
-    const angle = Phaser.Math.Angle.Between(fromX, fromY, this.player.x, this.player.y);
-    const kbForce = balance.player.knockbackForce;
-    (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(
-      Math.cos(angle) * kbForce,
-      Math.sin(angle) * kbForce
-    );
-    this.playerKnockTimer = balance.player.knockbackDuration;
-
-    this.playerInvincible = true;
-    this.playerInvincibilityTimer = balance.player.invincibilityDuration;
-    this.playerBlinkTimer = 0;
-  }
-
   private showGameOver() {
-    this.player.setActive(false).setVisible(false);
-    (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
     this.enemies.getChildren().forEach(e => (e as BaseEnemy).setActive(false));
 
-    // Reset progression
     this.registry.remove('floor');
     this.registry.remove('playerHp');
+    this.registry.remove('coinValue');
 
-    const cam = this.cameras.main;
     this.add.rectangle(400, 300, 800, 600, 0x000000, 0.7).setDepth(900).setScrollFactor(0);
     this.add.text(400, 270, 'GAME OVER', { fontSize: '48px', color: '#ff4444', stroke: '#000', strokeThickness: 4 })
       .setOrigin(0.5).setDepth(901).setScrollFactor(0);
