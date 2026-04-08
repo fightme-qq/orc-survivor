@@ -22,7 +22,7 @@ export class Skeleton extends BaseEnemy {
       b.aggroRange, b.attack, b.attackRange, b.attackCooldown,
       b.invincibilityDuration,
       b.patrolSpeed, b.leashRange, b.patrolPause,
-      b.knockbackForce,
+      b.knockbackForce, b.knockbackResist,
     );
     this.setupAnimations('skeleton');
   }
