@@ -41,6 +41,10 @@ export class ArrowSystem {
     this.onDamage = onDamage;
   }
 
+  getCooldownPct(): number {
+    return this.cooldown > 0 ? Math.min(1, this.cooldown / balance.player.attack3.cooldown) : 0;
+  }
+
   shoot(x: number, y: number, angle: number): boolean {
     if (this.cooldown > 0) return false;
     this.cooldown = balance.player.attack3.cooldown;
@@ -93,8 +97,9 @@ export class ArrowSystem {
       for (const child of this.enemies.getChildren()) {
         const enemy = child as BaseEnemy;
         if (!enemy.active) continue;
-        const dist = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, enemy.x, enemy.y);
-        const hitR = (enemy.body as Phaser.Physics.Arcade.Body).width * 0.5;
+        const body = enemy.body as Phaser.Physics.Arcade.Body;
+        const dist = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, body.center.x, body.center.y);
+        const hitR = body.halfWidth + 10;
         if (dist < hitR) {
           const isCrit = Math.random() < balance.player.critChance;
           const mult   = isCrit ? balance.player.critMultiplier : 1;
@@ -116,9 +121,9 @@ export class ArrowSystem {
   }
 
   private poof(x: number, y: number): void {
-    const g = this.scene.add.graphics().setDepth(210);
+    const g = this.scene.add.graphics({ x, y }).setDepth(210);
     g.fillStyle(0xffffff, 0.7);
-    g.fillCircle(x, y, 5);
+    g.fillCircle(0, 0, 5);
     this.scene.tweens.add({
       targets: g,
       alpha: 0,

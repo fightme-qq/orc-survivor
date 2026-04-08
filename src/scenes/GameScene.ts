@@ -441,6 +441,11 @@ export class GameScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(this.qKey))     this.processAttack2();
     if (Phaser.Input.Keyboard.JustDown(this.eKey))     this.processAttack3();
 
+    this.game.events.emit('abilityState', {
+      qPct: this.player.getAtk2CooldownPct(),
+      ePct: this.arrowSystem.getCooldownPct(),
+    });
+
     // Minimap data
     const enemyTiles = this.enemies.getChildren()
       .filter(e => (e as BaseEnemy).active)

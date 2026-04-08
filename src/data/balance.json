@@ -22,7 +22,7 @@
     },
     "attack3": {
       "damage": 80,
-      "cooldown": 1200,
+      "cooldown": 2000,
       "radius": 90
     }
   },

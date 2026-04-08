@@ -14,6 +14,12 @@ const FILL_SRC_START = 16; // источник x: до x=16 — сердце (н
 const FILL_SRC_W     = 48; // источник px: ширина зоны заполнения (x=16..63)
 const FILL_SRC_H     = 16; // высота фрейма в источнике
 
+// ── Ability hotkey icons ──────────────────────────────────────────────────────
+const AB_R  = 28;   // icon radius px
+const AB_QX = 55;   // Q icon center X (bottom-left)
+const AB_EX = 118;  // E icon center X
+const AB_Y  = 555;  // Y near bottom
+
 const MM_W = 150;
 const MM_H = 150;
 const MM_X = 800 - PAD - MM_W;
@@ -41,6 +47,10 @@ export class UIScene extends Phaser.Scene {
   private coinIcons!: [Phaser.GameObjects.Image, Phaser.GameObjects.Image, Phaser.GameObjects.Image];
   private coinTexts!: [Phaser.GameObjects.Text,  Phaser.GameObjects.Text,  Phaser.GameObjects.Text];
   private coinY = 0;
+
+  // Ability cooldown state (0 = ready, 1 = just used)
+  private abCd = { q: 0, e: 0 };
+  private abGfx!: Phaser.GameObjects.Graphics;
 
   // Minimap data
   private tiles:    number[][] = [];
@@ -103,6 +113,30 @@ export class UIScene extends Phaser.Scene {
     ) as unknown as [Phaser.GameObjects.Text, Phaser.GameObjects.Text, Phaser.GameObjects.Text];
     this.onCoinsChanged(this.registry.get('coinValue') ?? 0);
 
+    // ── Ability icons (Q = lunge, E = arrow) ──────────────────
+    {
+      const bg = this.add.graphics().setScrollFactor(0).setDepth(200);
+      // Dark circle background
+      bg.fillStyle(0x000000, 0.55);
+      bg.fillCircle(AB_QX, AB_Y, AB_R);
+      bg.fillCircle(AB_EX, AB_Y, AB_R);
+      // Subtle border
+      bg.lineStyle(1.5, 0xffffff, 0.25);
+      bg.strokeCircle(AB_QX, AB_Y, AB_R);
+      bg.strokeCircle(AB_EX, AB_Y, AB_R);
+
+      // Cooldown overlay gfx (pie sweep drawn in update)
+      this.abGfx = this.add.graphics().setScrollFactor(0).setDepth(201);
+
+      // Key letters — on top of overlay
+      this.add.text(AB_QX, AB_Y - 1, 'Q', {
+        fontSize: '28px', fontStyle: 'bold', color: '#ffffff',
+      }).setOrigin(0.5).setScrollFactor(0).setDepth(202).setAlpha(0.8);
+      this.add.text(AB_EX, AB_Y - 1, 'E', {
+        fontSize: '28px', fontStyle: 'bold', color: '#ffffff',
+      }).setOrigin(0.5).setScrollFactor(0).setDepth(202).setAlpha(0.8);
+    }
+
     // Floor label
     this.floorText = this.add.text(800 - PAD, PAD + BAR_H / 2, 'Floor 1', {
       fontSize: '13px', color: '#ffffff', stroke: '#000000', strokeThickness: 3,
@@ -125,22 +159,24 @@ export class UIScene extends Phaser.Scene {
     const dungeonData = this.registry.get('dungeonData');
     if (dungeonData) this.onDungeonReady(dungeonData);
 
-    this.game.events.on('playerHpChanged', this.onHpChanged,    this);
+    this.game.events.on('playerHpChanged', this.onHpChanged,     this);
     this.game.events.on('floorChanged',    this.onFloorChanged,  this);
     this.game.events.on('dungeonReady',    this.onDungeonReady,  this);
     this.game.events.on('playerMoved',     this.onPlayerMoved,   this);
     this.game.events.on('coinsChanged',    this.onCoinsChanged,  this);
+    this.game.events.on('abilityState',    this.onAbilityState,  this);
 
     this.events.once('shutdown', () => {
-      this.game.events.off('playerHpChanged', this.onHpChanged,    this);
+      this.game.events.off('playerHpChanged', this.onHpChanged,     this);
       this.game.events.off('floorChanged',    this.onFloorChanged,  this);
       this.game.events.off('dungeonReady',    this.onDungeonReady,  this);
       this.game.events.off('playerMoved',     this.onPlayerMoved,   this);
       this.game.events.off('coinsChanged',    this.onCoinsChanged,  this);
+      this.game.events.off('abilityState',    this.onAbilityState,  this);
     });
   }
 
-  update(_t: number, delta: number) {
+  update(_t: number, _delta: number) {
     // Redraw dim layer only when new tiles discovered
     if (this.exploredDirty) {
       this.redrawExplored();
@@ -149,8 +185,8 @@ export class UIScene extends Phaser.Scene {
 
     // Bright layer + units — every frame
     this.redrawVisible();
-
     this.redrawUnits();
+    this.redrawAbilityCooldowns();
   }
 
   // ── Event handlers ────────────────────────────────
@@ -307,6 +343,27 @@ export class UIScene extends Phaser.Scene {
       const sy = MM_Y + (this.stairTY + 0.5) * s;
       this.visibleGfx.fillStyle(C_STAIR, 1);
       this.visibleGfx.fillCircle(sx, sy, Math.max(2, s * 0.8));
+    }
+  }
+
+  private onAbilityState(data: { qPct: number; ePct: number }) {
+    this.abCd.q = data.qPct;
+    this.abCd.e = data.ePct;
+  }
+
+  /** Clockwise pie-sweep cooldown overlay for Q and E ability icons. */
+  private redrawAbilityCooldowns() {
+    this.abGfx.clear();
+    const entries: [number, number][] = [[AB_QX, this.abCd.q], [AB_EX, this.abCd.e]];
+    for (const [cx, pct] of entries) {
+      if (pct <= 0) continue;
+      this.abGfx.fillStyle(0x000000, 0.72);
+      this.abGfx.beginPath();
+      this.abGfx.moveTo(cx, AB_Y);
+      // Clockwise from top: -PI/2 → -PI/2 + 2PI*pct
+      this.abGfx.arc(cx, AB_Y, AB_R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pct, false, 0.01);
+      this.abGfx.closePath();
+      this.abGfx.fillPath();
     }
   }
 

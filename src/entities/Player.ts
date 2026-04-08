@@ -64,6 +64,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   get hp(): number { return this._hp; }
   get facingAngle(): number { return this._facingAngle; }
 
+  getAtk2CooldownPct(): number {
+    return this.atk2Timer > 0 ? Math.min(1, this.atk2Timer / balance.player.attack2.cooldown) : 0;
+  }
+
   heal(amount: number): void {
     this._hp = Math.min(this.maxHp, this._hp + amount);
   }
