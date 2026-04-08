@@ -107,7 +107,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     this.tickMovement();
     this.tickInvincibility(delta);
-    this.setDepth(this.y + this.displayHeight);
+    this.setDepth((this.body as Phaser.Physics.Arcade.Body).bottom);
   }
 
   private tickMovement(): void {

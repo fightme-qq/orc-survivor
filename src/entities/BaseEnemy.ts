@@ -182,8 +182,8 @@ export abstract class BaseEnemy extends Phaser.Physics.Arcade.Sprite {
       }
     }
 
-    // Depth sorting
-    const depth = this.y + this.displayHeight;
+    // Depth sorting — use body.bottom (feet) as anchor
+    const depth = (this.body as Phaser.Physics.Arcade.Body).bottom;
     this.setDepth(depth);
     const bx = this.x;
     const by = (this.body as Phaser.Physics.Arcade.Body).top - 6 + this.barOffsetY;

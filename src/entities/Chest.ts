@@ -20,7 +20,7 @@ export class Chest extends Phaser.Physics.Arcade.Sprite {
     // Body on bottom half so player can walk "behind" the chest
     const body = this.body as Phaser.Physics.Arcade.StaticBody;
     body.setSize(12, 8).setOffset(2, 8);
-    this.setDepth(y + this.displayHeight);
+    this.setDepth(body.bottom);
   }
 
   takeDamage(amount: number): void {
@@ -36,7 +36,7 @@ export class Chest extends Phaser.Physics.Arcade.Sprite {
   preUpdate(time: number, delta: number): void {
     super.preUpdate(time, delta);
     if (this.blinkTimer > 0) this.blinkTimer -= delta;
-    this.setDepth(this.y + this.displayHeight);
+    this.setDepth((this.body as Phaser.Physics.Arcade.StaticBody).bottom);
   }
 
   private open(): void {
