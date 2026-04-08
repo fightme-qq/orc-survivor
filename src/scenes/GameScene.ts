@@ -8,6 +8,8 @@ import { Vampire } from '../entities/Vampire';
 import { Orc } from '../entities/Orc';
 import { Player } from '../entities/Player';
 import { SCALE, TILE_S } from '../utils/constants';
+import { FloatTextSystem } from '../systems/FloatTextSystem';
+import { ArrowSystem } from '../systems/ArrowSystem';
 
 // Tileset frame indices (Dungeon_Tileset.png, 10-col grid of 16×16, frame = row*10+col)
 const FRAME_FLOOR        = 11; // row 1 col 1 — interior floor
@@ -60,8 +62,11 @@ export class GameScene extends Phaser.Scene {
   private floor     = 1;
   private traps: Array<{ sprite: Phaser.GameObjects.Sprite; timer: number; firing: boolean }> = [];
 
-  private coins!: Phaser.Physics.Arcade.StaticGroup;
-  private coinValue = 0; // total in silver units
+  private coins!:   Phaser.Physics.Arcade.StaticGroup;
+  private potions!: Phaser.Physics.Arcade.StaticGroup;
+  private coinValue = 0;
+  private floatText!: FloatTextSystem;
+  private arrowSystem!: ArrowSystem; // total in silver units
 
   constructor() {
     super({ key: 'GameScene' });
@@ -82,6 +87,7 @@ export class GameScene extends Phaser.Scene {
     this.walls   = this.physics.add.staticGroup();
     this.enemies = this.physics.add.group();
     this.coins   = this.physics.add.staticGroup();
+    this.potions = this.physics.add.staticGroup();
 
     // Solid fill for ALL wall tiles — same color as camera bg so inner walls are invisible
     // and only the edge-facing tileset frames show.
@@ -170,7 +176,7 @@ export class GameScene extends Phaser.Scene {
       const tx = tc * TILE_S + TILE_S / 2;
       const ty = tr * TILE_S + TILE_S / 2;
       const sprite = this.add.sprite(tx, ty, 'trap', 0);
-      sprite.setScale(2.5).setDepth(ty).setVisible(true);
+      sprite.setScale(2.5).setDepth(0).setVisible(true);
       this.traps.push({ sprite, timer: Phaser.Math.Between(500, td.cooldown), firing: false });
     };
 
@@ -332,23 +338,42 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // ── Coins — spawn one of each type in the start room ────────
-    const startRoom = dungeon.rooms.find(r => r.type === 'start');
-    if (startRoom) {
-      // Place coins along the bottom-left edge of the start room, away from player spawn
+    // ── Coins — scatter across all rooms ────────────────────────
+    {
       const bc = balance.coins;
-      const rx = (startRoom.x + 1) * TILE_S + TILE_S / 2;
-      const ry = (startRoom.y + startRoom.h - 2) * TILE_S + TILE_S / 2;
-      const coinDefs = [
-        { frame: bc.redFrame,    value: bc.redValue,    ox:  0 },
-        { frame: bc.goldFrame,   value: bc.goldValue,   ox: TILE_S },
-        { frame: bc.silverFrame, value: bc.silverValue, ox: TILE_S * 2 },
-      ];
-      for (const def of coinDefs) {
-        const s = this.coins.create(rx + def.ox, ry, 'icons', def.frame) as Phaser.Physics.Arcade.Sprite;
-        s.setScale(1.5).setDepth(ry + 16).refreshBody();
-        s.setData('value', def.value);
-      }
+      const COIN_SZ = 12;
+      const jitter  = Math.floor(TILE_S * 0.3);
+
+      const spawnCoin = (col: number, row: number, frame: number, value: number) => {
+        const wx = col * TILE_S + TILE_S / 2 + Phaser.Math.Between(-jitter, jitter);
+        const wy = row * TILE_S + TILE_S / 2 + Phaser.Math.Between(-jitter, jitter);
+        const s = this.coins.create(wx, wy, 'icons', frame) as Phaser.Physics.Arcade.Sprite;
+        s.setDisplaySize(COIN_SZ, COIN_SZ).setDepth(wy + 16).refreshBody();
+        (s.body as Phaser.Physics.Arcade.StaticBody).setSize(COIN_SZ, COIN_SZ);
+        s.setData('value', value);
+      };
+
+      const tryDrop = (frame: number, value: number) => {
+        for (let attempt = 0; attempt < 20; attempt++) {
+          const room = dungeon.rooms[Phaser.Math.Between(0, dungeon.rooms.length - 1)];
+          const col  = Phaser.Math.Between(room.x + 1, room.x + room.w - 2);
+          const row  = Phaser.Math.Between(room.y + 1, room.y + room.h - 2);
+          if (dungeon.tiles[row]?.[col] === TILE_FLOOR) {
+            spawnCoin(col, row, frame, value);
+            return;
+          }
+        }
+      };
+
+      // Silver: 4-9 per floor
+      const silverCount = Phaser.Math.Between(4, 9);
+      for (let i = 0; i < silverCount; i++) tryDrop(bc.silverFrame, bc.silverValue);
+
+      // Gold: ~10x rarer than silver → p≈0.5 per floor
+      if (Math.random() < 0.5) tryDrop(bc.goldFrame, bc.goldValue);
+
+      // Red: ~100x rarer than silver → p≈0.05 per floor
+      if (Math.random() < 0.05) tryDrop(bc.redFrame, bc.redValue);
     }
     this.physics.add.overlap(this.player, this.coins, (_p, coin) => {
       const c = coin as Phaser.Physics.Arcade.Sprite;
@@ -358,12 +383,47 @@ export class GameScene extends Phaser.Scene {
       this.game.events.emit('coinsChanged', this.coinValue);
     });
 
+    // ── Potions — 1-5 per floor ──────────────────────────────────
+    {
+      const bp = balance.potions;
+      const jitter = Math.floor(TILE_S * 0.3);
+      const count = Phaser.Math.Between(bp.spawnMin, bp.spawnMax);
+      for (let i = 0; i < count; i++) {
+        const item = bp.items[Phaser.Math.Between(0, bp.items.length - 1)];
+        for (let attempt = 0; attempt < 20; attempt++) {
+          const room = dungeon.rooms[Phaser.Math.Between(0, dungeon.rooms.length - 1)];
+          const col  = Phaser.Math.Between(room.x + 1, room.x + room.w - 2);
+          const row  = Phaser.Math.Between(room.y + 1, room.y + room.h - 2);
+          if (dungeon.tiles[row]?.[col] === TILE_FLOOR) {
+            const wx = col * TILE_S + TILE_S / 2 + Phaser.Math.Between(-jitter, jitter);
+            const wy = row * TILE_S + TILE_S / 2 + Phaser.Math.Between(-jitter, jitter);
+            const s = this.potions.create(wx, wy, 'potions', item.frame) as Phaser.Physics.Arcade.Sprite;
+            s.setDisplaySize(bp.displaySize, bp.displaySize).setDepth(wy + 16).refreshBody();
+            (s.body as Phaser.Physics.Arcade.StaticBody).setSize(bp.displaySize, bp.displaySize);
+            s.setData('heal', item.heal);
+            break;
+          }
+        }
+      }
+    }
+    this.physics.add.overlap(this.player, this.potions, (_p, pot) => {
+      const p = pot as Phaser.Physics.Arcade.Sprite;
+      const heal = p.getData('heal') as number;
+      p.destroy();
+      this.player.heal(heal);
+      this.floatText.showHeal(this.player.x, this.player.y, heal);
+      this.game.events.emit('playerHpChanged', this.player.hp, this.player.maxHp);
+    });
+
     this.physics.add.collider(this.player, this.walls);
     this.physics.add.collider(this.enemies, this.walls);
 
     this.cameras.main.setBounds(0, 0, width * TILE_S, height * TILE_S);
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
 
+    this.floatText  = new FloatTextSystem(this);
+    this.arrowSystem = new ArrowSystem(this, this.enemies, tiles,
+      (x, y, dmg, isCrit) => this.floatText.showDamage(x, y, dmg, isCrit));
     this.scene.launch('UIScene');
     this.game.events.emit('playerHpChanged', this.player.hp, this.player.maxHp);
     this.game.events.emit('floorChanged', this.floor);
@@ -374,6 +434,8 @@ export class GameScene extends Phaser.Scene {
 
   update(_time: number, delta: number) {
     if (!this.player.active) return;
+    this.floatText.update(delta);
+    this.arrowSystem.update(delta);
 
     if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.processAttack1();
     if (Phaser.Input.Keyboard.JustDown(this.qKey))     this.processAttack2();
@@ -417,6 +479,12 @@ export class GameScene extends Phaser.Scene {
 
   // ── Attacks ───────────────────────────────────────────────────
 
+  private rollDamage(dmgBase: number, armor: number): [number, boolean] {
+    const isCrit = Math.random() < balance.player.critChance;
+    const mult   = isCrit ? balance.player.critMultiplier : 1;
+    return [calcDamage(dmgBase * mult, armor), isCrit];
+  }
+
   private hitEnemiesRect(hitRect: Phaser.Geom.Rectangle, dmgBase: number): void {
     for (const child of this.enemies.getChildren()) {
       const enemy = child as BaseEnemy;
@@ -424,10 +492,11 @@ export class GameScene extends Phaser.Scene {
       const half = enemy.displayWidth / 2;
       const er = new Phaser.Geom.Rectangle(enemy.x - half, enemy.y - half, enemy.displayWidth, enemy.displayHeight);
       if (!Phaser.Geom.Rectangle.Overlaps(hitRect, er)) continue;
-      const dmg = calcDamage(dmgBase, enemy.getArmor());
+      const [dmg, isCrit] = this.rollDamage(dmgBase, enemy.getArmor());
       const kb  = Phaser.Math.Angle.Between(this.player.x, this.player.y, enemy.x, enemy.y);
       const ekb = enemy.getKnockbackForce();
       enemy.takeDamage(dmg, Math.cos(kb) * ekb, Math.sin(kb) * ekb);
+      this.floatText.showDamage(enemy.x, enemy.y, dmg, isCrit);
     }
   }
 
@@ -436,10 +505,11 @@ export class GameScene extends Phaser.Scene {
       const enemy = child as BaseEnemy;
       if (!enemy.active) continue;
       if (!Phaser.Geom.Circle.Contains(circle, enemy.x, enemy.y)) continue;
-      const dmg = calcDamage(dmgBase, enemy.getArmor());
+      const [dmg, isCrit] = this.rollDamage(dmgBase, enemy.getArmor());
       const kb  = Phaser.Math.Angle.Between(this.player.x, this.player.y, enemy.x, enemy.y);
       const ekb = enemy.getKnockbackForce();
       enemy.takeDamage(dmg, Math.cos(kb) * ekb, Math.sin(kb) * ekb);
+      this.floatText.showDamage(enemy.x, enemy.y, dmg, isCrit);
     }
   }
 
@@ -455,10 +525,22 @@ export class GameScene extends Phaser.Scene {
     if (hit) this.hitEnemiesRect(hit, balance.player.attack2.damage);
   }
 
-  // Attack 3 — spin AOE (E)
+  // Attack 3 — arrow shot (E), aimed at mouse but clamped to facing half
   private processAttack3(): void {
-    const hit = this.player.tryAttack3();
-    if (hit) this.hitEnemiesCircle(hit, balance.player.attack3.damage);
+    const cam     = this.cameras.main;
+    const pointer = this.input.activePointer;
+    const worldX  = pointer.x / cam.zoom + cam.worldView.x;
+    const worldY  = pointer.y / cam.zoom + cam.worldView.y;
+    const mouseAngle = Phaser.Math.Angle.Between(this.player.x, this.player.y, worldX, worldY);
+
+    // Clamp to facing half-circle: if facing right → [-π/2, π/2], left → [π/2, 3π/2]
+    const facingRight = this.player.facingAngle > -Math.PI / 2 && this.player.facingAngle < Math.PI / 2
+                     || (worldX >= this.player.x); // fallback: use mouse side
+    const halfDir   = facingRight ? 0 : Math.PI;
+    const diff      = Phaser.Math.Angle.Wrap(mouseAngle - halfDir);
+    const clamped   = halfDir + Phaser.Math.Clamp(diff, -Math.PI / 2, Math.PI / 2);
+
+    this.arrowSystem.shoot(this.player.x, this.player.y, clamped);
   }
 
   // ── Floor / Game Over ─────────────────────────────────────────

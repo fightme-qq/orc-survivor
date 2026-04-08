@@ -27,10 +27,22 @@ export class BootScene extends Phaser.Scene {
     this.load.spritesheet('skeleton-attack', 'assets/enemies/Enemy_Animations_Set/enemies-skeleton1_attack.png',      { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('skeleton-hit',    'assets/enemies/Enemy_Animations_Set/enemies-skeleton1_take_damage.png', { frameWidth: 32, frameHeight: 32 });
 
-    // Coins spritesheet (32×32 grid)
-    this.load.spritesheet('icons', 'assets/32x32.png', {
+    // Coins/items atlas (32×32 grid) — previously coins.png, renamed to images.png
+    this.load.spritesheet('icons', 'assets/ui/images.png', {
       frameWidth: 32, frameHeight: 32,
     });
+
+    // Arrow projectile (32×32)
+    this.load.image('arrow', 'assets/Characters(100x100)/Soldier/Arrow(projectile)/Arrow01(32x32).png');
+
+    // Potions strip — 16 frames of 32×32 (pre-extracted from images.png row 17)
+    this.load.spritesheet('potions', 'assets/ui/potions.png', {
+      frameWidth: 32, frameHeight: 32,
+    });
+
+    // CrimsonFantasyGUI — HP бар (64×16 каждый фрейм, 20 фреймов: 0=полный, 19=пустой)
+    const animBase = 'assets/ui/CrimsonFantasyGUI/AnimationSheets/';
+    this.load.spritesheet('hp-bar', animBase + 'CriticalDamage/CriticalDamage-Sheet.png', { frameWidth: 64, frameHeight: 16 });
 
     // Orc enemy — 100×100 frames (same pack as Soldier)
     const orc = 'assets/Characters(100x100)/Orc/Orc/';
@@ -194,6 +206,7 @@ export class BootScene extends Phaser.Scene {
       frames: this.anims.generateFrameNumbers('trap', { start: 0, end: 3 }),
       frameRate: 8, repeat: 0,
     });
+
 
     this.scene.start('GameScene');
   }

@@ -10,10 +10,10 @@ const SOLDIER_SCALE = 2.5;
 // Body covers visible character pixels head-to-feet, full width.
 // OFFX = (frameW - BODY_W) / 2, OFFY = (frameH - BODY_H) / 2
 // World width = 14 * 2.5 = 35px → fits in 1-tile corridor (48px).
-const BODY_W    = 14;
+const BODY_W    = 10;
 const BODY_H    = 15;
-const BODY_OFFX = 43; // (100 - 14) / 2 = 43
-const BODY_OFFY = 40; // (100 - 24) / 2 = 38
+const BODY_OFFX = 45; // (100 - 14) / 2 = 43
+const BODY_OFFY = 42; // (100 - 24) / 2 = 38
 
 type AttackState = 'none' | 'attack1' | 'attack2' | 'attack3';
 
@@ -37,6 +37,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   // Facing direction (for AOE and flip)
   private facingRight = true;
+  private _facingAngle = 0; // radians, updated on movement
 
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: { up: Key; down: Key; left: Key; right: Key };
@@ -61,6 +62,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   get hp(): number { return this._hp; }
+  get facingAngle(): number { return this._facingAngle; }
+
+  heal(amount: number): void {
+    this._hp = Math.min(this.maxHp, this._hp + amount);
+  }
 
   setupInput(
     cursors: Phaser.Types.Input.Keyboard.CursorKeys,
@@ -109,6 +115,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (vx !== 0 || vy !== 0) {
       if      (vx < 0) { this.setFlipX(true);  this.facingRight = false; }
       else if (vx > 0) { this.setFlipX(false); this.facingRight = true; }
+      this._facingAngle = Math.atan2(vy, vx);
       this.play('player-walk', true);
     } else {
       this.play('player-idle', true);

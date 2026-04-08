@@ -3,9 +3,16 @@ import balance from '../data/balance.json';
 import { TILE_WALL } from '../systems/DungeonGenerator';
 
 const MAX_HP = balance.player.hp;
-const BAR_W  = 200;
-const BAR_H  = 20;
 const PAD    = 10;
+
+// ── CrimsonFantasyGUI HP бар (CriticalDamage-Sheet.png) ──────────────────────
+// 20 фреймов 64×16, фрейм 0 = полный, фрейм 19 = пустой
+// Два слоя: пустой бар внизу + полный бар с setCrop сверху → плавное заполнение
+const HP_SCALE       = 4;  // 64×4=256px широкий, 16×4=64px высокий
+const BAR_H          = 16 * HP_SCALE;  // 64px
+const FILL_SRC_START = 16; // источник x: до x=16 — сердце (не кропаем)
+const FILL_SRC_W     = 48; // источник px: ширина зоны заполнения (x=16..63)
+const FILL_SRC_H     = 16; // высота фрейма в источнике
 
 const MM_W = 150;
 const MM_H = 150;
@@ -25,11 +32,15 @@ const C_PLAYER       = 0x44ff44;
 const C_ENEMY        = 0xcc2222;
 
 export class UIScene extends Phaser.Scene {
-  private hpBarFill!: Phaser.GameObjects.Rectangle;
+  private hpBarEmpty!: Phaser.GameObjects.Sprite; // всегда виден (пустые слоты)
+  private hpBarFill!:  Phaser.GameObjects.Sprite; // кропается по HP%
   private hpText!:    Phaser.GameObjects.Text;
   private floorText!: Phaser.GameObjects.Text;
+  private prevHp      = MAX_HP;
 
-  private coinTexts!: [Phaser.GameObjects.Text, Phaser.GameObjects.Text, Phaser.GameObjects.Text];
+  private coinIcons!: [Phaser.GameObjects.Image, Phaser.GameObjects.Image, Phaser.GameObjects.Image];
+  private coinTexts!: [Phaser.GameObjects.Text,  Phaser.GameObjects.Text,  Phaser.GameObjects.Text];
+  private coinY = 0;
 
   // Minimap data
   private tiles:    number[][] = [];
@@ -60,33 +71,36 @@ export class UIScene extends Phaser.Scene {
   }
 
   create() {
-    // HP bar
-    this.add.rectangle(PAD + BAR_W / 2, PAD + BAR_H / 2, BAR_W + 6, BAR_H + 6, 0x000000, 0.6)
+    // ── HP бар (CrimsonFantasyGUI CriticalDamage-Sheet) ─────────────────────
+    // Нижний слой: пустой бар (фрейм 19) — всегда виден полностью
+    this.hpBarEmpty = this.add.sprite(PAD, PAD, 'hp-bar', 19)
+      .setScale(HP_SCALE).setOrigin(0, 0)
       .setScrollFactor(0).setDepth(100);
-    this.add.rectangle(PAD + BAR_W / 2, PAD + BAR_H / 2, BAR_W, BAR_H, 0x444444)
+    // Верхний слой: полный бар (фрейм 0) — кропается до текущего HP%
+    this.hpBarFill = this.add.sprite(PAD, PAD, 'hp-bar', 0)
+      .setScale(HP_SCALE).setOrigin(0, 0)
       .setScrollFactor(0).setDepth(101);
-    this.hpBarFill = this.add.rectangle(PAD, PAD + BAR_H / 2, BAR_W, BAR_H, 0x44cc44)
-      .setScrollFactor(0).setDepth(102).setOrigin(0, 0.5);
-    this.hpText = this.add.text(PAD + BAR_W / 2, PAD + BAR_H / 2, `${MAX_HP} / ${MAX_HP}`, {
-      fontSize: '11px', color: '#ffffff', stroke: '#000000', strokeThickness: 2,
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(103);
 
-    // Coin display — below HP bar
-    const coinY  = PAD + BAR_H + 10;
-    const iconSz = 16; // display size of each coin icon
+    // Текст HP по центру сердечка (сердечко x=0..15 → центр x≈8 → display PAD+32)
+    this.hpText = this.add.text(PAD + 8 * HP_SCALE, PAD + BAR_H / 2, `${MAX_HP}`, {
+      fontSize: '14px', fontStyle: 'bold', color: '#ffffff',
+      stroke: '#000000', strokeThickness: 4,
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(102);
+
+    // Coin display — below HP bar (icons hidden until player has that coin type)
+    this.coinY = PAD + BAR_H + 6;
+    const iconSz = 18;
     const bc = balance.coins;
-    const coinDefs = [
-      { frame: bc.redFrame,    x: PAD },
-      { frame: bc.goldFrame,   x: PAD + 55 },
-      { frame: bc.silverFrame, x: PAD + 110 },
-    ] as const;
-    this.coinTexts = coinDefs.map(def => {
-      this.add.image(def.x + iconSz / 2, coinY + iconSz / 2, 'icons', def.frame)
-        .setDisplaySize(iconSz, iconSz).setScrollFactor(0).setDepth(100);
-      return this.add.text(def.x + iconSz + 3, coinY + iconSz / 2, '0', {
+    const coinFrames = [bc.redFrame, bc.goldFrame, bc.silverFrame] as const;
+    this.coinIcons = coinFrames.map(frame =>
+      this.add.image(0, 0, 'icons', frame)
+        .setDisplaySize(iconSz, iconSz).setScrollFactor(0).setDepth(100).setVisible(false)
+    ) as unknown as [Phaser.GameObjects.Image, Phaser.GameObjects.Image, Phaser.GameObjects.Image];
+    this.coinTexts = coinFrames.map(() =>
+      this.add.text(0, 0, '0', {
         fontSize: '11px', color: '#ffffff', stroke: '#000000', strokeThickness: 2,
-      }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(101);
-    }) as unknown as [Phaser.GameObjects.Text, Phaser.GameObjects.Text, Phaser.GameObjects.Text];
+      }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(101).setVisible(false)
+    ) as unknown as [Phaser.GameObjects.Text, Phaser.GameObjects.Text, Phaser.GameObjects.Text];
     this.onCoinsChanged(this.registry.get('coinValue') ?? 0);
 
     // Floor label
@@ -142,20 +156,36 @@ export class UIScene extends Phaser.Scene {
   // ── Event handlers ────────────────────────────────
 
   private onHpChanged(current: number, max: number) {
-    const pct = Math.max(0, current / max);
-    this.hpBarFill.setSize(BAR_W * pct, BAR_H);
-    this.hpBarFill.setFillStyle(pct > 0.5 ? 0x44cc44 : pct > 0.25 ? 0xddcc22 : 0xcc2222);
-    this.hpText.setText(`${Math.round(current)} / ${max}`);
+    const pct   = Math.max(0, Math.min(1, current / max));
+    // setCrop в координатах источника (до scale): показываем сердце + pct зоны заполнения
+    const cropW = FILL_SRC_START + FILL_SRC_W * pct;
+    this.hpBarFill.setCrop(0, 0, cropW, FILL_SRC_H);
+    this.hpText.setText(`${Math.round(current)}`);
+    this.prevHp = current;
   }
 
   private onCoinsChanged(total: number) {
     const bc = balance.coins;
-    const red    = Math.floor(total / bc.redValue);
-    const gold   = Math.floor((total % bc.redValue) / bc.goldValue);
-    const silver = total % bc.goldValue;
-    this.coinTexts[0].setText(String(red));
-    this.coinTexts[1].setText(String(gold));
-    this.coinTexts[2].setText(String(silver));
+    const counts = [
+      Math.floor(total / bc.redValue),
+      Math.floor((total % bc.redValue) / bc.goldValue),
+      total % bc.goldValue,
+    ];
+    const ICON_SZ  = 18;
+    const GAP      = 4;  // px between icon+text groups
+    const TEXT_GAP = 2;  // px between icon and number
+    let curX = PAD;
+    const midY = this.coinY + ICON_SZ / 2;
+    for (let i = 0; i < 3; i++) {
+      const visible = counts[i] > 0;
+      this.coinIcons[i].setVisible(visible);
+      this.coinTexts[i].setVisible(visible);
+      if (visible) {
+        this.coinIcons[i].setPosition(curX + ICON_SZ / 2, midY);
+        this.coinTexts[i].setText(String(counts[i])).setPosition(curX + ICON_SZ + TEXT_GAP, midY);
+        curX += ICON_SZ + TEXT_GAP + (this.coinTexts[i].width) + GAP;
+      }
+    }
   }
 
   private onFloorChanged(floor: number) {

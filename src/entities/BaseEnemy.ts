@@ -109,6 +109,7 @@ export abstract class BaseEnemy extends Phaser.Physics.Arcade.Sprite {
   setTiles(t: number[][])                     { this.tiles  = t; }
   getArmor()                                  { return this.armor; }
   getKnockbackForce()                         { return this.knockbackForce; }
+  getMaxHp()                                  { return this.maxHp; }
 
   setRoom(room: Room) {
     this.room        = room;

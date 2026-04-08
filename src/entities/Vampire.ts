@@ -7,7 +7,7 @@ import { SCALE } from '../utils/constants';
 // OFFX = (32 - BODY_W) / 2, OFFY = (32 - BODY_H) / 2
 // World width = 12 * 3 = 36px → fits in 1-tile corridor (48px).
 const BODY_W    = 10;
-const BODY_H    = 14;
+const BODY_H    = 12;
 const BODY_OFFX = 10; // (32 - 12) / 2 = 10
 const BODY_OFFY =  15; // (32 - 18) / 2 = 7
 

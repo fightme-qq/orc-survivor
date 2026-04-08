@@ -4,6 +4,8 @@
     "hp": 1000,
     "armor": 10,
     "attack": 100,
+    "critChance": 0.05,
+    "critMultiplier": 2.0,
     "attackCooldown": 350,
     "invincibilityDuration": 400,
     "knockbackForce": 300,
@@ -72,12 +74,35 @@
     }
   },
   "coins": {
-    "redFrame":     0,
-    "silverFrame":  1,
-    "goldFrame":    2,
+    "redFrame":     128,
+    "silverFrame":  131,
+    "goldFrame":    130,
     "silverValue":  1,
     "goldValue":    10,
     "redValue":     100
+  },
+  "potions": {
+    "spawnMin": 1,
+    "spawnMax": 5,
+    "displaySize": 16,
+    "items": [
+      { "frame":  0, "heal": 25  },
+      { "frame":  1, "heal": 30  },
+      { "frame":  2, "heal": 35  },
+      { "frame":  3, "heal": 45  },
+      { "frame":  4, "heal": 40  },
+      { "frame":  5, "heal": 45  },
+      { "frame":  6, "heal": 60  },
+      { "frame":  7, "heal": 55  },
+      { "frame":  8, "heal": 70  },
+      { "frame":  9, "heal": 60  },
+      { "frame": 10, "heal": 80  },
+      { "frame": 11, "heal": 100 },
+      { "frame": 12, "heal": 50  },
+      { "frame": 13, "heal": 75  },
+      { "frame": 14, "heal": 60  },
+      { "frame": 15, "heal": 70  }
+    ]
   },
   "trap": {
     "damage": 60,
