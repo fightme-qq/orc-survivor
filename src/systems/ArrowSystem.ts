@@ -46,8 +46,6 @@ export class ArrowSystem {
   }
 
   shoot(x: number, y: number, angle: number): boolean {
-    if (this.cooldown > 0) return false;
-    this.cooldown = balance.player.attack3.cooldown;
 
     const vx = Math.cos(angle) * ARROW_SPEED;
     const vy = Math.sin(angle) * ARROW_SPEED;

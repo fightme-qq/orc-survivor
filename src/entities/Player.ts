@@ -68,6 +68,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     return this.atk2Timer > 0 ? Math.min(1, this.atk2Timer / balance.player.attack2.cooldown) : 0;
   }
 
+  getAtk3CooldownPct(): number {
+    return this.atk3Timer > 0 ? Math.min(1, this.atk3Timer / balance.player.attack3.cooldown) : 0;
+  }
+
   heal(amount: number): void {
     this._hp = Math.min(this.maxHp, this._hp + amount);
   }

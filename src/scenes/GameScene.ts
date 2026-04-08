@@ -443,7 +443,7 @@ export class GameScene extends Phaser.Scene {
 
     this.game.events.emit('abilityState', {
       qPct: this.player.getAtk2CooldownPct(),
-      ePct: this.arrowSystem.getCooldownPct(),
+      ePct: this.player.getAtk3CooldownPct(),
     });
 
     // Minimap data
@@ -532,6 +532,9 @@ export class GameScene extends Phaser.Scene {
 
   // Attack 3 — arrow shot (E), aimed at mouse but clamped to facing half
   private processAttack3(): void {
+    // tryAttack3 handles cooldown gate + plays the bow animation
+    if (!this.player.tryAttack3()) return;
+
     const cam     = this.cameras.main;
     const pointer = this.input.activePointer;
     const worldX  = pointer.x / cam.zoom + cam.worldView.x;
@@ -540,10 +543,10 @@ export class GameScene extends Phaser.Scene {
 
     // Clamp to facing half-circle: if facing right → [-π/2, π/2], left → [π/2, 3π/2]
     const facingRight = this.player.facingAngle > -Math.PI / 2 && this.player.facingAngle < Math.PI / 2
-                     || (worldX >= this.player.x); // fallback: use mouse side
-    const halfDir   = facingRight ? 0 : Math.PI;
-    const diff      = Phaser.Math.Angle.Wrap(mouseAngle - halfDir);
-    const clamped   = halfDir + Phaser.Math.Clamp(diff, -Math.PI / 2, Math.PI / 2);
+                     || (worldX >= this.player.x);
+    const halfDir = facingRight ? 0 : Math.PI;
+    const diff    = Phaser.Math.Angle.Wrap(mouseAngle - halfDir);
+    const clamped = halfDir + Phaser.Math.Clamp(diff, -Math.PI / 2, Math.PI / 2);
 
     this.arrowSystem.shoot(this.player.x, this.player.y, clamped);
   }
