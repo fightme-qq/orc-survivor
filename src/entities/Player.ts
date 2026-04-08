@@ -208,12 +208,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     this.lockAttack('attack3', 'player-attack3', 9, 16);
 
-    // Visual ring
-    const ring = this.scene.add.circle(this.x, this.y, b3.radius, 0xff6600, 0.3).setDepth(500);
-    const outline = this.scene.add.circle(this.x, this.y, b3.radius, 0xff6600, 0).setDepth(500);
-    outline.setStrokeStyle(2, 0xff6600, 0.9);
-    this.scene.time.delayedCall(180, () => { ring.destroy(); outline.destroy(); });
-
     return new Phaser.Geom.Circle(this.x, this.y, b3.radius);
   }
 
