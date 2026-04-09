@@ -105,7 +105,9 @@ export class ArrowSystem {
         if (dist < hitR) {
           const isCrit = Math.random() < balance.player.critChance;
           const mult   = isCrit ? balance.player.critMultiplier : 1;
-          const dmg    = calcDamage(balance.player.attack3.damage * mult, enemy.getArmor());
+          const v      = balance.player.damageVariance;
+          const vary   = 1 - v + Math.random() * v * 2;
+          const dmg    = Math.round(calcDamage(balance.player.attack3.damage * mult * vary, enemy.getArmor()));
           const kb     = Phaser.Math.Angle.Between(a.sprite.x, a.sprite.y, enemy.x, enemy.y);
           enemy.takeDamage(dmg, Math.cos(kb) * enemy.getKnockbackForce(), Math.sin(kb) * enemy.getKnockbackForce());
           this.onDamage(enemy.x, enemy.y, dmg, isCrit);
@@ -123,7 +125,9 @@ export class ArrowSystem {
           if (dist < 20) {
             const isCrit = Math.random() < balance.player.critChance;
             const mult   = isCrit ? balance.player.critMultiplier : 1;
-            const dmg    = calcDamage(balance.player.attack3.damage * mult, 0);
+            const v      = balance.player.damageVariance;
+            const vary   = 1 - v + Math.random() * v * 2;
+            const dmg    = Math.round(calcDamage(balance.player.attack3.damage * mult * vary, 0));
             chest.takeDamage(dmg);
             this.onDamage(chest.x, chest.y, dmg, isCrit);
             hitChest = true;
