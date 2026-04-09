@@ -177,7 +177,7 @@ export class UIScene extends Phaser.Scene {
       const iconSz  = 20;
       const statY   = MM_Y - PAD - iconSz / 2;
       const iconX   = MM_X + MM_W - iconSz / 2;
-      this.statIcon = this.add.image(iconX, statY, 'icons', 6171)
+      this.statIcon = this.add.image(iconX, statY, 'icons', 726)
         .setDisplaySize(iconSz, iconSz).setScrollFactor(0).setDepth(100);
       this.statText = this.add.text(iconX - iconSz / 2 - 4, statY, '100', {
         fontSize: '13px', fontStyle: 'bold', color: '#ffdd88',
