@@ -57,6 +57,8 @@ export class UIScene extends Phaser.Scene {
 
   private statText!:  Phaser.GameObjects.Text;
   private statIcon!:  Phaser.GameObjects.Image;
+  private arrowText!: Phaser.GameObjects.Text;
+  private arrowIcon!: Phaser.GameObjects.Image;
   private armorText!: Phaser.GameObjects.Text;
   private armorIcon!: Phaser.GameObjects.Image;
 
@@ -189,7 +191,15 @@ export class UIScene extends Phaser.Scene {
         stroke: '#000000', strokeThickness: 3,
       }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(100);
 
-      const armY = atkY + rowH;
+      const arwY = atkY + rowH;
+      this.arrowIcon = this.add.image(iconX, arwY, 'icons', 1788)
+        .setDisplaySize(iconSz, iconSz).setScrollFactor(0).setDepth(100);
+      this.arrowText = this.add.text(textX, arwY, '80', {
+        fontSize: '13px', fontStyle: 'bold', color: '#ffdd88',
+        stroke: '#000000', strokeThickness: 3,
+      }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(100);
+
+      const armY = arwY + rowH;
       this.armorIcon = this.add.image(iconX, armY, 'icons', 1818)
         .setDisplaySize(iconSz, iconSz).setScrollFactor(0).setDepth(100);
       this.armorText = this.add.text(textX, armY, '10', {
@@ -404,8 +414,9 @@ export class UIScene extends Phaser.Scene {
     this.abCd.e = data.ePct;
   }
 
-  private onStatsChanged(data: { attack: number; armor: number }) {
+  private onStatsChanged(data: { attack: number; arrowDamage: number; armor: number }) {
     this.statText?.setText(String(data.attack));
+    this.arrowText?.setText(String(data.arrowDamage));
     this.armorText?.setText(String(data.armor));
   }
 
