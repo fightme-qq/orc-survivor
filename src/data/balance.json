@@ -4,6 +4,7 @@
     "hp": 1000,
     "armor": 10,
     "attack": 100,
+    "damageVariance": 0.05,
     "critChance": 0.05,
     "critMultiplier": 2.0,
     "attackCooldown": 350,
