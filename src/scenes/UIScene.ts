@@ -55,8 +55,10 @@ export class UIScene extends Phaser.Scene {
   private abCd = { q: 0, e: 0 };
   private abGfx!: Phaser.GameObjects.Graphics;
 
-  private statText!: Phaser.GameObjects.Text;
-  private statIcon!: Phaser.GameObjects.Image;
+  private statText!:  Phaser.GameObjects.Text;
+  private statIcon!:  Phaser.GameObjects.Image;
+  private armorText!: Phaser.GameObjects.Text;
+  private armorIcon!: Phaser.GameObjects.Image;
 
   // Minimap data
   private tiles:    number[][] = [];
@@ -172,15 +174,26 @@ export class UIScene extends Phaser.Scene {
     this.visibleGfx  = this.add.graphics().setScrollFactor(0).setDepth(112);
     this.unitGfx     = this.add.graphics().setScrollFactor(0).setDepth(113);
 
-    // Damage stat — above minimap: "[attack] ⚔"
+    // Stats panel — left of minimap, top-aligned, each row: [number] [icon]
     {
       const iconSz  = 20;
-      const statY   = MM_Y - PAD - iconSz / 2;
-      const iconX   = MM_X + MM_W - iconSz / 2;
-      this.statIcon = this.add.image(iconX, statY, 'icons', 670)
+      const rowH    = iconSz + 4;
+      const iconX   = MM_X - PAD - iconSz / 2;   // icon center X
+      const textX   = iconX - iconSz / 2 - 4;    // text right edge
+
+      const atkY = MM_Y + iconSz / 2;
+      this.statIcon = this.add.image(iconX, atkY, 'icons', 670)
         .setDisplaySize(iconSz, iconSz).setScrollFactor(0).setDepth(100);
-      this.statText = this.add.text(iconX - iconSz / 2 - 4, statY, '100', {
+      this.statText = this.add.text(textX, atkY, '100', {
         fontSize: '13px', fontStyle: 'bold', color: '#ffdd88',
+        stroke: '#000000', strokeThickness: 3,
+      }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(100);
+
+      const armY = atkY + rowH;
+      this.armorIcon = this.add.image(iconX, armY, 'icons', 1818)
+        .setDisplaySize(iconSz, iconSz).setScrollFactor(0).setDepth(100);
+      this.armorText = this.add.text(textX, armY, '10', {
+        fontSize: '13px', fontStyle: 'bold', color: '#aaddff',
         stroke: '#000000', strokeThickness: 3,
       }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(100);
     }
@@ -391,8 +404,9 @@ export class UIScene extends Phaser.Scene {
     this.abCd.e = data.ePct;
   }
 
-  private onStatsChanged(data: { attack: number }) {
+  private onStatsChanged(data: { attack: number; armor: number }) {
     this.statText?.setText(String(data.attack));
+    this.armorText?.setText(String(data.armor));
   }
 
   /** Clockwise pie-sweep cooldown overlay for Q and E ability icons. */
