@@ -426,13 +426,12 @@ export class UIScene extends Phaser.Scene {
     const entries: [number, number][] = [[AB_QX, this.abCd.q], [AB_EX, this.abCd.e]];
     for (const [cx, pct] of entries) {
       if (pct <= 0) continue;
+      // Square overlay: fills from top down proportional to cooldown pct
+      const left = cx - AB_SZ / 2;
+      const top  = AB_Y - AB_SZ / 2;
+      const h    = AB_SZ * pct;
       this.abGfx.fillStyle(0x000000, 0.72);
-      this.abGfx.beginPath();
-      this.abGfx.moveTo(cx, AB_Y);
-      // Clockwise from top: -PI/2 → -PI/2 + 2PI*pct
-      this.abGfx.arc(cx, AB_Y, AB_R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pct, false, 0.01);
-      this.abGfx.closePath();
-      this.abGfx.fillPath();
+      this.abGfx.fillRect(left, top, AB_SZ, h);
     }
   }
 
