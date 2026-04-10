@@ -39,7 +39,7 @@
       "attackCooldown": 800,
       "invincibilityDuration": 500,
       "knockbackResist": 1.0,
-      "knockbackForce": 50,
+      "knockbackForce": 20,
       "patrolSpeed": 0.5,
       "leashRange": 600,
       "patrolPause": 1500
@@ -54,7 +54,7 @@
       "attackCooldown": 1000,
       "invincibilityDuration": 500,
       "knockbackResist": 0.7,
-      "knockbackForce": 20,
+      "knockbackForce": 50,
       "patrolSpeed": 0.4,
       "leashRange": 500,
       "patrolPause": 2000
@@ -69,7 +69,7 @@
       "attackCooldown": 600,
       "invincibilityDuration": 500,
       "knockbackResist": 1.0,
-      "knockbackForce": 50,
+      "knockbackForce": 20,
       "patrolSpeed": 0.5,
       "leashRange": 700,
       "patrolPause": 1200
