@@ -488,7 +488,7 @@ export class GameScene extends Phaser.Scene {
         trap.sprite.play('trap-anim');
         const dist = Phaser.Math.Distance.Between(trap.sprite.x, trap.sprite.y, this.player.x, this.player.y);
         if (dist < balance.trap.radius && this.player.active) {
-          this.player.takeDamage(balance.trap.damage, trap.sprite.x, trap.sprite.y);
+          this.player.takeDamage(balance.trap.damage, trap.sprite.x, trap.sprite.y, 0);
         }
         this.time.delayedCall(balance.trap.activeDuration, () => {
           trap.firing = false;
