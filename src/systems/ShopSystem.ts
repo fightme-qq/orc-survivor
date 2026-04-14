@@ -207,34 +207,27 @@ export class ShopSystem {
     const s    = this.scene;
     const col  = RARITY_COLORS_INT[inst.rarity];
     const colH = RARITY_COLORS_HEX[inst.rarity];
-    const LINE  = 13; // px between bonus lines
-    const cardH = H + (inst.bonuses.length - 1) * LINE;
+    const LINE  = 13;
+    const PAD_L = 28; // left text offset from card edge
+    const PAD_R = 10;
+    const MIN_W = 90;
 
-    const bg = s.add.rectangle(0, 0, W, cardH, 0x111111, 0.75).setOrigin(0.5, 1);
-    const border = s.add.rectangle(0, 0, W, cardH).setOrigin(0.5, 1)
-      .setStrokeStyle(1.5, col).setFillStyle(0, 0);
-
-    const iconImg = s.add.image(-W / 2 + 13, -cardH + 30, 'icons', inst.frame)
-      .setDisplaySize(20, 20).setOrigin(0.5, 0.5);
-
-    const tx = -W / 2 + 28;
-
-    const nameText = s.add.text(tx, -cardH + 5, inst.name, {
+    // ── 1. Create text objects to measure width ────────────────────────────────
+    const nameText = s.add.text(0, 0, inst.name, {
       fontSize: '11px', fontStyle: 'bold', color: '#ffffff', resolution: 4,
     }).setOrigin(0, 0);
 
-    const rarText = s.add.text(tx, -cardH + 20, t().rarities[inst.rarity], {
+    const rarText = s.add.text(0, 0, t().rarities[inst.rarity], {
       fontSize: '10px', fontStyle: 'bold', color: colH, resolution: 4,
     }).setOrigin(0, 0);
 
-    // One line per bonus
-    const bonusObjs: Phaser.GameObjects.Text[] = inst.bonuses.map((b, i) =>
-      s.add.text(tx, -cardH + 34 + i * LINE, this.formatBonus(b), {
+    const bonusObjs: Phaser.GameObjects.Text[] = inst.bonuses.map(b =>
+      s.add.text(0, 0, this.formatBonus(b), {
         fontSize: '10px', fontStyle: 'bold', color: '#ffffff', resolution: 4,
       }).setOrigin(0, 0)
     );
 
-    // Price row
+    // ── 2. Measure price row width ─────────────────────────────────────────────
     const bc      = balance.coins;
     const reds    = Math.floor(inst.price / 100);
     const golds   = Math.floor((inst.price % 100) / 10);
@@ -244,16 +237,45 @@ export class ShopSystem {
     if (golds   > 0) groups.push({ frame: bc.goldFrame,   count: golds });
     if (silvers > 0) groups.push({ frame: bc.silverFrame, count: silvers });
 
+    const priceTxts = groups.map(g => s.add.text(0, 0, String(g.count), {
+      fontSize: '11px', fontStyle: 'bold', color: '#dddddd', resolution: 4,
+    }));
+    const priceRowW = groups.length * (14 + 2) + priceTxts.reduce((s, t) => s + t.width + 4, 6);
+
+    // ── 3. Calculate card width from widest element ────────────────────────────
+    const allWidths = [
+      nameText.width,
+      rarText.width,
+      ...bonusObjs.map(b => b.width),
+      priceRowW,
+    ];
+    const cardW = Math.max(MIN_W, Math.max(...allWidths) + PAD_L + PAD_R);
+    const cardH = H + (inst.bonuses.length - 1) * LINE;
+
+    // ── 4. Position everything now that cardW is known ─────────────────────────
+    const lx = -cardW / 2; // left card edge
+    const tx = lx + PAD_L; // text start x
+
+    const bg     = s.add.rectangle(0, 0, cardW, cardH, 0x111111, 0.75).setOrigin(0.5, 1);
+    const border = s.add.rectangle(0, 0, cardW, cardH).setOrigin(0.5, 1)
+      .setStrokeStyle(1.5, col).setFillStyle(0, 0);
+
+    const iconImg = s.add.image(lx + 13, -cardH + 30, 'icons', inst.frame)
+      .setDisplaySize(20, 20).setOrigin(0.5, 0.5);
+
+    nameText.setPosition(tx, -cardH + 5);
+    rarText .setPosition(tx, -cardH + 20);
+    bonusObjs.forEach((b, i) => b.setPosition(tx, -cardH + 34 + i * LINE));
+
+    // Price row
     const priceChildren: Phaser.GameObjects.GameObject[] = [];
-    let cx = -W / 2 + 6;
-    for (const g of groups) {
+    let cx = lx + 6;
+    groups.forEach((g, i) => {
       const icon = s.add.image(cx, -9, 'icons', g.frame).setDisplaySize(14, 14).setOrigin(0, 0.5);
-      const txt  = s.add.text(cx + 16, -16, String(g.count), {
-        fontSize: '11px', fontStyle: 'bold', color: '#dddddd', resolution: 4,
-      }).setOrigin(0, 0);
-      priceChildren.push(icon, txt);
-      cx += 16 + txt.width + 4;
-    }
+      priceTxts[i].setPosition(cx + 16, -16);
+      priceChildren.push(icon, priceTxts[i]);
+      cx += 16 + priceTxts[i].width + 4;
+    });
 
     return s.add.container(0, 0, [bg, border, iconImg, nameText, rarText, ...bonusObjs, ...priceChildren]);
   }
