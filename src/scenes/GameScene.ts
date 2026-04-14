@@ -486,6 +486,7 @@ export class GameScene extends Phaser.Scene {
     if (startRoom) this.shopSystem.spawnInRoom(startRoom);
 
     this.scene.launch('UIScene');
+    (window as any).ysdk?.features?.GameplayAPI?.start();
     this.game.events.emit('playerHpChanged', this.player.hp, this.player.maxHp);
     this.game.events.emit('floorChanged', this.floor);
     this.game.events.emit('playerStatsChanged', { attack: this.stats.attack, arrowDamage: this.stats.arrowDamage, armor: this.stats.armor });
@@ -809,6 +810,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private showGameOver() {
+    (window as any).ysdk?.features?.GameplayAPI?.stop();
     this.enemies.getChildren().forEach(e => (e as BaseEnemy).setActive(false));
 
     this.registry.remove('floor');

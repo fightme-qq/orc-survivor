@@ -3,6 +3,20 @@ import { BootScene } from './scenes/BootScene';
 import { GameScene } from './scenes/GameScene';
 import { UIScene } from './scenes/UIScene';
 
+declare const YaGames: { init(): Promise<any> } | undefined;
+
+// Yandex SDK — инициализируем до старта игры, но не блокируем его
+(async () => {
+  try {
+    if (typeof YaGames !== 'undefined') {
+      const ysdk = await YaGames.init();
+      (window as any).ysdk = ysdk;
+    }
+  } catch {
+    // SDK недоступен (локальная разработка) — продолжаем без него
+  }
+})();
+
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   backgroundColor: '#2a2a2a',
