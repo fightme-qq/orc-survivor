@@ -6,16 +6,30 @@ import { refreshLang } from './lang';
 
 declare const YaGames: { init(): Promise<any> } | undefined;
 
-// Yandex SDK — инициализируем до старта игры, но не блокируем его
+// Флаги синхронизации: ready() вызываем только когда оба готовы
+(window as any).__sdkDone  = false;
+(window as any).__bootDone = false;
+
+function trySignalReady() {
+  if ((window as any).__sdkDone && (window as any).__bootDone) {
+    (window as any).ysdk?.features?.LoadingAPI?.ready();
+  }
+}
+(window as any).__trySignalReady = trySignalReady;
+
+// Yandex SDK — инициализируем асинхронно, не блокируем запуск игры
 (async () => {
   try {
     if (typeof YaGames !== 'undefined') {
       const ysdk = await YaGames.init();
       (window as any).ysdk = ysdk;
-      refreshLang(); // язык известен только после init()
+      refreshLang();
     }
   } catch {
     // SDK недоступен (локальная разработка) — продолжаем без него
+  } finally {
+    (window as any).__sdkDone = true;
+    trySignalReady();
   }
 })();
 

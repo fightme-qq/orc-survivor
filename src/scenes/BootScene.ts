@@ -225,8 +225,9 @@ export class BootScene extends Phaser.Scene {
       frameRate: 14, repeat: 0,
     });
 
-    // Сообщаем Яндексу что игра загружена
-    (window as any).ysdk?.features?.LoadingAPI?.ready();
+    // Сообщаем Яндексу что BootScene завершён — ready() вызовется когда оба флага выставлены
+    (window as any).__bootDone = true;
+    (window as any).__trySignalReady?.();
 
     this.scene.start('GameScene');
   }
