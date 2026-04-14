@@ -415,6 +415,9 @@ export class GameScene extends Phaser.Scene {
         }
       };
 
+      // TEST: red coin in start room
+      { const sr = dungeon.rooms[0]; spawnCoin(sr.x + 1, sr.y + 1, bc.redFrame, bc.redValue); }
+
       // Silver: 2-4 per floor (halved from 4-9)
       const silverCount = Phaser.Math.Between(2, 4);
       for (let i = 0; i < silverCount; i++) tryDrop(bc.silverFrame, bc.silverValue);
@@ -730,7 +733,13 @@ export class GameScene extends Phaser.Scene {
       case 'armor':          this.stats.armor          += inst.value;        break;
       case 'critMultiplier': this.stats.critMultiplier += inst.value / 100;  break;
       case 'critChance':     this.stats.critChance     += inst.value / 100;  break;
-      case 'maxHp':          this.stats.maxHp          += inst.value;        break;
+      case 'maxHp':
+        this.stats.maxHp += inst.value;
+        this.player.updateStats(this.stats);
+        this.player.heal(inst.value);
+        this.registry.set('playerHp', this.player.hp);
+        this.game.events.emit('playerHpChanged', this.player.hp, this.player.maxHp);
+        break;
     }
     this.player.updateStats(this.stats);
     setStats(this.registry, this.stats);

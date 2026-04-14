@@ -249,7 +249,7 @@ export class ShopSystem {
       case 'armor':          return `+${inst.value} armor`;
       case 'critMultiplier': return `+${inst.value}% crit damage`;
       case 'critChance':     return `+${inst.value}% crit chance`;
-      case 'maxHp':          return `+${inst.value} HP`;
+      case 'maxHp':          return `+${inst.value} max hp`;
     }
   }
 }
