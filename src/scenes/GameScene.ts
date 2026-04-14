@@ -95,6 +95,7 @@ export class GameScene extends Phaser.Scene {
       ['_peaks4', '_peaks3', '_peaks2', '_peaks1'].forEach((k, i) => {
         ctx.drawImage(this.textures.get(k).getSourceImage() as HTMLImageElement, i * 16, 0, 16, 16);
       });
+      ctx.clearRect(0, 14, 64, 2);
       c.add(0, 0,  0, 0, 16, 16); c.add(1, 0, 16, 0, 16, 16);
       c.add(2, 0, 32, 0, 16, 16); c.add(3, 0, 48, 0, 16, 16);
       c.refresh();

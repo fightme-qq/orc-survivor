@@ -200,6 +200,7 @@ export class BootScene extends Phaser.Scene {
       const src = this.textures.get(key).getSourceImage() as HTMLImageElement;
       sctx.drawImage(src, i * 16, 0, 16, 16);
     });
+    sctx.clearRect(0, 14, 64, 2); // strip bottom 2 rows — artifact pixels
     trapCanvas.add(0, 0,  0, 0, 16, 16);
     trapCanvas.add(1, 0, 16, 0, 16, 16);
     trapCanvas.add(2, 0, 32, 0, 16, 16);
