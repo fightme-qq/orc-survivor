@@ -54,7 +54,7 @@ const NAME_POOLS: Record<StatKey, string[]> = {
   armor:          ['Iron Scale','Stone Hide','Plate Rivet','Battle Coat','Bulwark','Tempered Shell','Ironclad','Shield Shard','Forged Guard','Warplate'],
   critMultiplier: ['Death Mark','Razor Will','Killing Edge','Battle Fury','Bloodlust','Slaughter Rune','Frenzy Stone','Vein Cutter','War Scar','Warlust'],
   critChance:     ['Lucky Charm','Fortune Dice','Gambler\'s Eye','Risk Token','Fate Shard','Cursed Coin','Omen Stone','Wild Card','Chaos Mark','Trickster Eye'],
-  maxHp:          ['Life Crystal','Blood Stone','Vital Core','Iron Heart','Soul Shard','Mending Ruby','Living Stone','Heartstone','Ember Vial','Scarlet Core'],
+  maxHp:          ['Roast Leg','Bread Loaf','Healing Herb','Dragon Egg','Life Mushroom','Berry Tart','Sacred Fruit','War Ration','Vital Stew','Blood Apple'],
 };
 
 function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
@@ -147,8 +147,10 @@ export class ShopSystem {
       if (rand <= 0) { rarity = i; break; }
     }
 
-    const rar   = itemDef.rarities[rarity];
-    const value = Phaser.Math.Between(rar.min, rar.max);
+    const rar  = itemDef.rarities[rarity];
+    const base = Phaser.Math.Between(rar.min, rar.max);
+    // Legendary gives double value
+    const value = rarity === 4 ? base * 2 : base;
     const frame = pick(ICON_POOLS[key]);
     const name  = pick(NAME_POOLS[key]);
 
