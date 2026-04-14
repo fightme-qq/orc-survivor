@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
 import { GameScene } from './scenes/GameScene';
 import { UIScene } from './scenes/UIScene';
+import { refreshLang } from './lang';
 
 declare const YaGames: { init(): Promise<any> } | undefined;
 
@@ -11,6 +12,7 @@ declare const YaGames: { init(): Promise<any> } | undefined;
     if (typeof YaGames !== 'undefined') {
       const ysdk = await YaGames.init();
       (window as any).ysdk = ysdk;
+      refreshLang(); // язык известен только после init()
     }
   } catch {
     // SDK недоступен (локальная разработка) — продолжаем без него

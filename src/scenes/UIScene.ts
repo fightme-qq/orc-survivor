@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import balance from '../data/balance.json';
 import { TILE_WALL } from '../systems/DungeonGenerator';
+import { t } from '../lang';
 
 const GAME_W = 1280;
 const GAME_H = 720;
@@ -164,7 +165,7 @@ export class UIScene extends Phaser.Scene {
     }
 
     // Floor label
-    this.floorText = this.add.text(GAME_W - PAD, PAD + BAR_H / 2, 'Floor 1', {
+    this.floorText = this.add.text(GAME_W - PAD, PAD + BAR_H / 2, t().floor(1), {
       fontSize: '13px', color: '#ffffff', stroke: '#000000', strokeThickness: 3,
       backgroundColor: '#00000099', padding: { x: 6, y: 3 },
     }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(100);
@@ -293,7 +294,7 @@ export class UIScene extends Phaser.Scene {
   }
 
   private onFloorChanged(floor: number) {
-    this.floorText?.setText(`Floor ${floor}`);
+    this.floorText?.setText(t().floor(floor));
   }
 
   private onDungeonReady(data: {

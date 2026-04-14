@@ -14,6 +14,7 @@ import { EnemySpawner } from '../systems/EnemySpawner';
 import { Chest } from '../entities/Chest';
 import { getStats, setStats, clearStats, PlayerStats } from '../systems/RunState';
 import { ShopSystem, ShopItemInstance } from '../systems/ShopSystem';
+import { t } from '../lang';
 
 // Tileset frame indices (Dungeon_Tileset.png, 10-col grid of 16×16, frame = row*10+col)
 const FRAME_FLOOR        = 11; // row 1 col 1 — interior floor
@@ -819,9 +820,9 @@ export class GameScene extends Phaser.Scene {
     clearStats(this.registry);
 
     this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.7).setDepth(900).setScrollFactor(0);
-    this.add.text(640, 330, 'GAME OVER', { fontSize: '48px', color: '#ff4444', stroke: '#000', strokeThickness: 4 })
+    this.add.text(640, 330, t().gameOver, { fontSize: '48px', color: '#ff4444', stroke: '#000', strokeThickness: 4 })
       .setOrigin(0.5).setDepth(901).setScrollFactor(0);
-    this.add.text(640, 390, 'Click to restart', { fontSize: '20px', color: '#ffffff' })
+    this.add.text(640, 390, t().clickRestart, { fontSize: '20px', color: '#ffffff' })
       .setOrigin(0.5).setDepth(901).setScrollFactor(0);
 
     // Remove attack listener so clicks go to restart

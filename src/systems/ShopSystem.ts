@@ -2,10 +2,9 @@ import Phaser from 'phaser';
 import balance from '../data/balance.json';
 import { Room } from './DungeonGenerator';
 import { TILE_S } from '../utils/constants';
+import { t } from '../lang';
 
 export type StatKey = 'attack' | 'arrowDamage' | 'armor' | 'critMultiplier' | 'critChance' | 'maxHp';
-
-const RARITY_NAMES  = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
 const RARITY_COLORS_HEX = ['#aaaaaa', '#44cc44', '#4488ff', '#cc44ff', '#ffaa00'];
 const RARITY_COLORS_INT = [0xaaaaaa,  0x44cc44,  0x4488ff,  0xcc44ff,  0xffaa00];
 
@@ -53,16 +52,8 @@ const ICON_POOLS: Record<StatKey, number[]> = {
   maxHp:          frRange(32, 33),
 };
 
-const NAME_POOLS: Record<StatKey, string[]> = {
-  attack:         ['Iron Blade','War Edge','Whetstone','Razorstone','Jagged Fang','Steel Grit','Crimson Edge','Battleclaw','Warbound','Tempered Shard'],
-  arrowDamage:    ['Flint Tip','Barbed Shaft','Hawk Feather','Piercing Point','Iron Nock','Wind Splitter','Quiver Shard','Eagle Eye','Notched Arrow','Bolt Head'],
-  armor:          ['Iron Scale','Stone Hide','Plate Rivet','Battle Coat','Bulwark','Tempered Shell','Ironclad','Shield Shard','Forged Guard','Warplate'],
-  critMultiplier: ['Death Mark','Razor Will','Killing Edge','Battle Fury','Bloodlust','Slaughter Rune','Frenzy Stone','Vein Cutter','War Scar','Warlust'],
-  critChance:     ['Lucky Charm','Fortune Dice','Gambler\'s Eye','Risk Token','Fate Shard','Cursed Coin','Omen Stone','Wild Card','Chaos Mark','Trickster Eye'],
-  maxHp:          ['Roast Leg','Bread Loaf','Healing Herb','Dragon Egg','Life Mushroom','Berry Tart','Sacred Fruit','War Ration','Vital Stew','Blood Apple'],
-};
 
-function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
+function pick<T>(arr: readonly T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
 
 export class ShopSystem {
   private scene: Phaser.Scene;
@@ -113,7 +104,7 @@ export class ShopSystem {
       const canAfford = coinValue >= item.inst.price;
 
       item.prompt.setVisible(inRange);
-      item.prompt.setText(canAfford ? 'Press E to buy' : `Need ${item.inst.price} silver`);
+      item.prompt.setText(canAfford ? t().pressEBuy : t().needSilver(item.inst.price));
       item.prompt.setColor(canAfford ? '#ffffff' : '#ff6666');
 
       if (inRange && eJustDown && canAfford && !purchased) {
@@ -158,7 +149,7 @@ export class ShopSystem {
     const rar   = itemDef.rarities[rarity];
     const value = Phaser.Math.Between(rar.min, rar.max);
     const frame = pick(ICON_POOLS[key]);
-    const name  = pick(NAME_POOLS[key]);
+    const name  = pick(t().itemNames[key]);
 
     // Build bonus list — Epic gets 2, Legendary gets 3 stats
     const bonusCount = rarity >= 4 ? 3 : rarity >= 3 ? 2 : 1;
@@ -177,7 +168,7 @@ export class ShopSystem {
       }
     }
 
-    return { statKey: key, rarity, bonuses, price: rar.price, name, frame };
+    return { statKey: key, rarity, bonuses, price: rar.price, name: name as string, frame };
   }
 
   private createWorldItem(wx: number, wy: number, inst: ShopItemInstance): void {
@@ -203,7 +194,7 @@ export class ShopSystem {
     card.setPosition(wx, wy - iconSz / 2 - 6).setDepth(1000);
 
     // Prompt text — always above player/enemies
-    const prompt = scene.add.text(wx, wy + iconSz / 2 + 4, 'Press E to buy', {
+    const prompt = scene.add.text(wx, wy + iconSz / 2 + 4, t().pressEBuy, {
       fontSize: '13px', fontStyle: 'bold', color: '#ffffff',
       stroke: '#000000', strokeThickness: 4,
       resolution: 4,
@@ -232,7 +223,7 @@ export class ShopSystem {
       fontSize: '11px', fontStyle: 'bold', color: '#ffffff', resolution: 4,
     }).setOrigin(0, 0);
 
-    const rarText = s.add.text(tx, -cardH + 20, RARITY_NAMES[inst.rarity], {
+    const rarText = s.add.text(tx, -cardH + 20, t().rarities[inst.rarity], {
       fontSize: '10px', fontStyle: 'bold', color: colH, resolution: 4,
     }).setOrigin(0, 0);
 
@@ -268,13 +259,6 @@ export class ShopSystem {
   }
 
   private formatBonus(b: StatBonus): string {
-    switch (b.statKey) {
-      case 'attack':         return `+${b.value} sword damage`;
-      case 'arrowDamage':    return `+${b.value} arrow damage`;
-      case 'armor':          return `+${b.value} armor`;
-      case 'critMultiplier': return `+${b.value}% crit damage`;
-      case 'critChance':     return `+${b.value}% crit chance`;
-      case 'maxHp':          return `+${b.value} max hp`;
-    }
+    return t().statBonus[b.statKey](b.value);
   }
 }
