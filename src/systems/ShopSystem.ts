@@ -105,6 +105,9 @@ export class ShopSystem {
     for (const item of this.items) {
       if (!item.active) continue;
 
+      // Depth-sort icon with world objects (same as player/enemies use body.bottom)
+      item.sprite.setDepth(item.sprite.y + 16);
+
       const dist    = Phaser.Math.Distance.Between(px, py, item.sprite.x, item.sprite.y);
       const inRange = dist < INTERACT_R;
       const canAfford = coinValue >= item.inst.price;
