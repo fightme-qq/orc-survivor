@@ -162,7 +162,7 @@ export class ArrowSystem {
       scaleY: 2.5,
       duration: 200,
       ease: 'Quad.Out',
-      onComplete: () => g.destroy(),
+      onComplete: () => { if (g.active) g.destroy(); },
     });
   }
 }

@@ -86,8 +86,10 @@ export class GameScene extends Phaser.Scene {
   create() {
     this.floor      = this.registry.get('floor') ?? 1;
     this.coinValue  = this.registry.get('coinValue') ?? 0;
-    this.stairUsed  = false;
-    this.stats      = getStats(this.registry);
+    this.stairUsed    = false;
+    this.transitioning = false;
+    this.stairChargeMs = 0;
+    this.stats        = getStats(this.registry);
 
     // Canvas textures (trap, torch) are created in BootScene but may not survive
     // scene.restart() in some Phaser builds — recreate them if missing.
@@ -540,7 +542,7 @@ export class GameScene extends Phaser.Scene {
         this.time.delayedCall(balance.trap.activeDuration, () => {
           trap.firing = false;
           trap.timer  = balance.trap.cooldown;
-          trap.sprite.setFrame(0);
+          if (trap.sprite?.active) trap.sprite.setFrame(0);
         });
       }
     }
