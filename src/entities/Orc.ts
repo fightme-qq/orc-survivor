@@ -13,7 +13,7 @@ const BODY_OFFX = 43; // (100 - 14) / 2 = 43
 const BODY_OFFY = 42; // (100 - 15) / 2 = 42
 
 export class Orc extends BaseEnemy {
-  constructor(scene: Phaser.Scene, x: number, y: number) {
+  constructor(scene: Phaser.Scene, x: number, y: number, hpMult = 1, atkMult = 1) {
     const b = balance.enemies.orc;
     super(
       scene, x, y,
@@ -24,6 +24,7 @@ export class Orc extends BaseEnemy {
       b.invincibilityDuration,
       b.patrolSpeed, b.leashRange, b.patrolPause,
       b.knockbackForce, b.hitKnockback, b.knockbackResist,
+      hpMult, atkMult,
     );
     this.setupAnimations('orc');
   }

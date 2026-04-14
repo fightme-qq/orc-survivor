@@ -12,7 +12,7 @@ const BODY_OFFX = 10; // (32 - 12) / 2 = 10
 const BODY_OFFY =  15; // (32 - 15) / 2 = 8.5, rounded to 10
 
 export class Skeleton extends BaseEnemy {
-  constructor(scene: Phaser.Scene, x: number, y: number) {
+  constructor(scene: Phaser.Scene, x: number, y: number, hpMult = 1, atkMult = 1) {
     const b = balance.enemies.skeleton;
     super(
       scene, x, y,
@@ -23,6 +23,7 @@ export class Skeleton extends BaseEnemy {
       b.invincibilityDuration,
       b.patrolSpeed, b.leashRange, b.patrolPause,
       b.knockbackForce, b.hitKnockback, b.knockbackResist,
+      hpMult, atkMult,
     );
     this.setupAnimations('skeleton');
   }

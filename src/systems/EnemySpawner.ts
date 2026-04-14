@@ -8,7 +8,7 @@ import { Player } from '../entities/Player';
 import { Room } from './DungeonGenerator';
 import { TILE_S } from '../utils/constants';
 
-type EnemyCtor = new (scene: Phaser.Scene, x: number, y: number) => BaseEnemy;
+type EnemyCtor = new (scene: Phaser.Scene, x: number, y: number, hpMult: number, atkMult: number) => BaseEnemy;
 
 export class EnemySpawner {
   constructor(
@@ -21,14 +21,17 @@ export class EnemySpawner {
   ) {}
 
   spawnRoom(room: Room): number {
-    const count = this.pickCount();
+    const d      = balance.dungeon;
+    const hpMult  = 1 + d.scalingHpPerFloor  * (this.floor - 1);
+    const atkMult = 1 + d.scalingAtkPerFloor * (this.floor - 1);
+    const count  = this.pickCount();
     for (let i = 0; i < count; i++) {
       const col = Phaser.Math.Between(room.x + 1, room.x + room.w - 2);
       const row = Phaser.Math.Between(room.y + 1, room.y + room.h - 2);
       const ex  = col * TILE_S + TILE_S / 2;
       const ey  = row * TILE_S + TILE_S / 2;
 
-      const enemy = new (this.pickType())(this.scene, ex, ey);
+      const enemy = new (this.pickType())(this.scene, ex, ey, hpMult, atkMult);
       enemy.setPlayer(this.player);
       enemy.setTiles(this.tiles);
       enemy.setRoom(room);

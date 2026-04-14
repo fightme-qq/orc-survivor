@@ -83,16 +83,18 @@ export abstract class BaseEnemy extends Phaser.Physics.Arcade.Sprite {
     knockbackForce: number,
     hitKnockback: number,
     knockbackResist = 1.0,
+    hpMult = 1.0,
+    atkMult = 1.0,
   ) {
     super(scene, x, y, texture);
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
-    this.hp = this.maxHp        = hp;
+    this.hp = this.maxHp        = Math.round(hp * hpMult);
     this.armor                  = armor;
     this.speed                  = speed;
     this.aggroRange             = aggroRange;
-    this.attackDamage           = attackDamage;
+    this.attackDamage           = Math.round(attackDamage * atkMult);
     this.attackRange            = attackRange;
     this.attackCooldown         = attackCooldown;
     this.invincibilityDuration  = invincibilityDuration;

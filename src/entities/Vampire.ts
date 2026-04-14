@@ -12,7 +12,7 @@ const BODY_OFFX = 10; // (32 - 12) / 2 = 10
 const BODY_OFFY =  15; // (32 - 18) / 2 = 7
 
 export class Vampire extends BaseEnemy {
-  constructor(scene: Phaser.Scene, x: number, y: number) {
+  constructor(scene: Phaser.Scene, x: number, y: number, hpMult = 1, atkMult = 1) {
     const b = balance.enemies.vampire;
     super(
       scene, x, y,
@@ -23,6 +23,7 @@ export class Vampire extends BaseEnemy {
       b.invincibilityDuration,
       b.patrolSpeed, b.leashRange, b.patrolPause,
       b.knockbackForce, b.hitKnockback, b.knockbackResist,
+      hpMult, atkMult,
     );
     this.barOffsetY = -10;
     this.setupAnimations('vampire');

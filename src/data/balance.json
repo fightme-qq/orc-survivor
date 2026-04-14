@@ -219,6 +219,8 @@
     "roomPadding": 1,
     "corridorWidth": 1,
     "extraCorridors": 1,
+    "scalingHpPerFloor":  0.03,
+    "scalingAtkPerFloor": 0.02,
     "stairChargeDuration": 3000,
     "enemyCountWeights": [20, 20, 30, 15, 15],
     "enemyTypeWeights": {
