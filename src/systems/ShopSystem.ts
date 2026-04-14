@@ -195,16 +195,16 @@ export class ShopSystem {
       ease:     'Sine.InOut',
     });
 
-    // Card container — sits above the sprite
+    // Card container — always above player/enemies
     const card = this.buildCard(inst);
-    card.setPosition(wx, wy - iconSz / 2 - 6).setDepth(401);
+    card.setPosition(wx, wy - iconSz / 2 - 6).setDepth(1000);
 
-    // Prompt text — below the sprite, shown only when in range
+    // Prompt text — always above player/enemies
     const prompt = scene.add.text(wx, wy + iconSz / 2 + 4, 'Press E to buy', {
       fontSize: '13px', fontStyle: 'bold', color: '#ffffff',
       stroke: '#000000', strokeThickness: 4,
       resolution: 4,
-    }).setOrigin(0.5, 0).setDepth(402).setVisible(false);
+    }).setOrigin(0.5, 0).setDepth(1000).setVisible(false);
 
     this.items.push({ inst, sprite, card, prompt, active: true });
   }
