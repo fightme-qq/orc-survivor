@@ -445,8 +445,7 @@ export class UIScene extends Phaser.Scene {
   private onItemBought(data: { frame: number; name: string }) {
     const SZ  = 24;
     const GAP = 4;
-    const startX = GAME_W / 2; // center the row
-    const y = GAME_H - PAD - AB_SZ - PAD - SZ / 2;
+    const y = GAME_H - SZ / 2 - 2;
 
     const idx = this.itemIconsRow.length;
     // Reposition all icons centered
@@ -466,7 +465,6 @@ export class UIScene extends Phaser.Scene {
       ic.setX(x0 + i * (SZ + GAP) + SZ / 2);
     });
 
-    void startX; // suppress unused warning
   }
 
   /** Clockwise pie-sweep cooldown overlay for Q and E ability icons. */
