@@ -415,8 +415,8 @@ export class GameScene extends Phaser.Scene {
         }
       };
 
-      // TEST: red coin in start room
-      { const sr = dungeon.rooms[0]; spawnCoin(sr.x + 1, sr.y + 1, bc.redFrame, bc.redValue); }
+      // TEST: red coin in start room (floor 1 only)
+      if (this.floor === 1) { const sr = dungeon.rooms[0]; spawnCoin(sr.x + 1, sr.y + 1, bc.redFrame, bc.redValue); }
 
       // Silver: 2-4 per floor (halved from 4-9)
       const silverCount = Phaser.Math.Between(2, 4);
