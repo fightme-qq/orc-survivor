@@ -239,6 +239,21 @@ export function generateDungeon(): DungeonMap {
 
   const rooms: Room[] = [];
   carveRooms(root, tiles, rooms, padding);
+
+  // Ensure start room (rooms[0]) is at least 8×8
+  if (rooms.length > 0) {
+    const sr   = rooms[0];
+    const minS = 8;
+    const newW = Math.max(sr.w, minS);
+    const newH = Math.max(sr.h, minS);
+    const newX = Math.max(1, Math.min(sr.x, MAP_W - newW - 1));
+    const newY = Math.max(1, Math.min(sr.y, MAP_H - newH - 1));
+    for (let r = newY; r < newY + newH; r++)
+      for (let c = newX; c < newX + newW; c++)
+        tiles[r][c] = TILE_FLOOR;
+    sr.x = newX; sr.y = newY; sr.w = newW; sr.h = newH;
+  }
+
   connectNode(root, tiles, widthMap);
 
   // Guarantee connectivity: flood-fill from first room
