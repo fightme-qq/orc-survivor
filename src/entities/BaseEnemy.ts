@@ -120,6 +120,12 @@ export abstract class BaseEnemy extends Phaser.Physics.Arcade.Sprite {
   getKnockbackForce()                         { return this.knockbackForce; }
   getMaxHp()                                  { return this.maxHp; }
 
+  /** Survivor mode: always chase player, never return to spawn. */
+  setAlwaysChase(): void {
+    this.aggroRange = 999999;
+    this.leashRange = 999999;
+  }
+
   setRoom(room: Room) {
     this.room        = room;
     this.roomCenterX = (room.x + room.w / 2) * TILE_S + TILE_S / 2;
@@ -419,15 +425,21 @@ export abstract class BaseEnemy extends Phaser.Physics.Arcade.Sprite {
 
   /**
    * Axis-priority velocity toward waypoint.
-   * Primary axis: full speed toward waypoint.
-   * Secondary axis: corrects toward current tile center to prevent
-   * corner-sticking in 1-tile-wide corridors.
+   * In open arena (no tiles): pure diagonal movement — no alignment needed.
+   * In dungeon corridors: axis-priority + tile-center alignment to prevent
+   * corner-sticking in 1-tile-wide passages.
    */
   private setMoveVelocity(dx: number, dy: number, dist: number, spd: number): void {
-    const body     = this.body as Phaser.Physics.Arcade.Body;
+    const body = this.body as Phaser.Physics.Arcade.Body;
+
+    // Open arena — move directly toward target, no tile correction
+    if (!this.tiles.length) {
+      body.setVelocity((dx / dist) * spd, (dy / dist) * spd);
+      return;
+    }
+
+    // Corridor mode: axis-priority with tile-center alignment.
     // Use body.center (not sprite origin) to determine which tile the enemy is actually in.
-    // Sprite center can cross a tile boundary while the body is still in the previous tile,
-    // causing tileCX to point toward the wall instead of the corridor center.
     const tileCX   = (Math.floor(body.center.x / TILE_S) + 0.5) * TILE_S;
     const tileCY   = (Math.floor(body.center.y / TILE_S) + 0.5) * TILE_S;
     const alignSpd = spd * 0.9;

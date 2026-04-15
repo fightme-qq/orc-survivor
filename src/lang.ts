@@ -1,5 +1,9 @@
 // Определяем язык один раз при старте
 function detectLang(): 'ru' | 'en' {
+  // URL-параметр ?lang=ru для локального тестирования
+  const urlLang = new URLSearchParams(window.location.search).get('lang');
+  if (urlLang === 'ru') return 'ru';
+  if (urlLang === 'en') return 'en';
   try {
     const ysdk = (window as any).ysdk;
     if (ysdk?.environment?.i18n?.lang) {
@@ -26,6 +30,9 @@ const STRINGS = {
     gameOver:       'GAME OVER',
     clickRestart:   'Click to restart',
     floor:          (n: number) => `Floor ${n}`,
+    wave:           (n: number) => `Wave ${n}`,
+    waveCleared:    'Wave cleared!',
+    nextWave:       (s: number) => `Next wave in ${s}s...`,
     pressEBuy:      'Press E to buy',
     needSilver:     (n: number) => `Need ${n} silver`,
 
@@ -54,6 +61,9 @@ const STRINGS = {
     gameOver:       'ИГРА ОКОНЧЕНА',
     clickRestart:   'Нажмите для перезапуска',
     floor:          (n: number) => `Этаж ${n}`,
+    wave:           (n: number) => `Волна ${n}`,
+    waveCleared:    'Волна пройдена!',
+    nextWave:       (s: number) => `Следующая волна через ${s}с...`,
     pressEBuy:      'E — купить',
     needSilver:     (n: number) => `Нужно ${n} серебра`,
 

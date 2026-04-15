@@ -14,22 +14,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
+  deploy:
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
+
       - run: npm ci
       - run: npm run build
+
       - uses: actions/configure-pages@v4
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
-      - id: deploy
+
+      - id: deployment
         uses: actions/deploy-pages@v4

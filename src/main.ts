@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
-import { GameScene } from './scenes/GameScene';
-import { UIScene } from './scenes/UIScene';
+import { SurvivorScene } from './scenes/SurvivorScene';
+import { SurvivorUIScene } from './scenes/SurvivorUIScene';
 import { refreshLang } from './lang';
 
 declare const YaGames: { init(): Promise<any> } | undefined;
@@ -50,7 +50,7 @@ const config: Phaser.Types.Core.GameConfig = {
       debug: false
     }
   },
-  scene: [BootScene, GameScene, UIScene]
+  scene: [BootScene, SurvivorScene, SurvivorUIScene]
 };
 
 new Phaser.Game(config);

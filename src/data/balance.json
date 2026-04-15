@@ -210,6 +210,13 @@
       }
     }
   },
+  "survivor": {
+    "autoAttackRange": 80,
+    "autoAttackCooldown": 700,
+    "waveBaseCount": 5,
+    "waveCountIncrease": 3,
+    "wavePause": 15000
+  },
   "dungeon": {
     "mapWidth": 40,
     "mapHeight": 30,

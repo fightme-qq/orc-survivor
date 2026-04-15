@@ -229,6 +229,6 @@ export class BootScene extends Phaser.Scene {
     (window as any).__bootDone = true;
     (window as any).__trySignalReady?.();
 
-    this.scene.start('GameScene');
+    this.scene.start('SurvivorScene');
   }
 }
