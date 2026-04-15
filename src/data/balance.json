@@ -79,11 +79,11 @@
     }
   },
   "enemyLoot": {
-    "silverChance":  0.25,
-    "silverCount2":  0.10,
-    "goldChance":    0.05,
-    "redChance":     0.005,
-    "potionChance":  0.15
+    "silverChance":  1.00,
+    "silverCount2":  0.40,
+    "goldChance":    0.20,
+    "redChance":     0.02,
+    "potionChance":  0.60
   },
   "coins": {
     "redFrame":     128,
